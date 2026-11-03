@@ -1,0 +1,27 @@
+[package]
+name = "pinecil-v2-bringup"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+bl706-hal = { version = "0.1.0", path = "../../crates/bl706-hal" }
+embassy-executor = { version = "0.10.0", default-features = false, features = ["platform-spin", "executor-thread"] }
+embassy-time = "0.5.1"
+static_cell = "2.1.1"
+
+[features]
+default = []
+fpu = ["bl706-hal/fpu"]
+atomic-probe = []
+
+[[bin]]
+name = "fpu"
+path = "src/bin/fpu.rs"
+required-features = ["fpu"]
+
+[[bin]]
+name = "atomics"
+path = "src/bin/atomics.rs"
+required-features = ["atomic-probe"]

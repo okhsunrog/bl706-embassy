@@ -1,0 +1,6 @@
+[alias]
+firmware = "build --release -p pinecil-v2-bringup --bins --target riscv32imc-unknown-none-elf"
+firmware-fpu = "build --release -p pinecil-v2-bringup --bins --target riscv32imfc-unknown-none-elf --features fpu -Zbuild-std=core"
+
+[target.'cfg(target_arch = "riscv32")']
+rustflags = ["-C", "link-arg=-Tbl706.x"]

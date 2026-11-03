@@ -1,0 +1,8 @@
+[package]
+name = "bl706-pac"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Experimental chiptool PAC for Bouffalo Lab BL702/704/706"
+
+[dependencies]

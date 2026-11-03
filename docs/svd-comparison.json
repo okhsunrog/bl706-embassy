@@ -1,0 +1,919 @@
+{
+  "official_to_andelf": {
+    "added_rf_property_count": 2865,
+    "other_changes": [
+      {
+        "path": "/cpu[702]/endian",
+        "before": "little",
+        "after": null
+      },
+      {
+        "path": "/cpu[702]/name",
+        "before": "702",
+        "after": null
+      },
+      {
+        "path": "/description",
+        "before": "high-performance, 32-bit RV32IMAFC core",
+        "after": "BL702 BLE + Zigbee combo chipset"
+      },
+      {
+        "path": "/name",
+        "before": "702",
+        "after": "BL702"
+      },
+      {
+        "path": "/peripherals/peripheral[AON]/baseAddress",
+        "before": null,
+        "after": 1073803264
+      },
+      {
+        "path": "/vendor",
+        "before": "bouffalolab",
+        "after": "Bouffalo Lab"
+      },
+      {
+        "path": "/version",
+        "before": null,
+        "after": "1.0"
+      }
+    ]
+  },
+  "andelf_to_patched": [
+    {
+      "path": "/peripherals/peripheral[cam]/description",
+      "before": "cam.",
+      "after": "Camera"
+    },
+    {
+      "path": "/peripherals/peripheral[ef_ctrl]/description",
+      "before": "ef_ctrl.",
+      "after": "eFuse memory control"
+    },
+    {
+      "path": "/peripherals/peripheral[emac]/description",
+      "before": "emac.",
+      "after": "Ethernet MAC"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/description",
+      "before": "glb.",
+      "after": "Global Register"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CAM]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CAM]/bitOffset",
+      "before": null,
+      "after": 29
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CAM]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CAM]/description",
+      "before": null,
+      "after": "CAM"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CAM]/name",
+      "before": null,
+      "after": "CAM"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CCI]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CCI]/bitOffset",
+      "before": null,
+      "after": 8
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CCI]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CCI]/description",
+      "before": null,
+      "after": "CCI (efuse?)"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CCI]/name",
+      "before": null,
+      "after": "CCI"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CKS]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CKS]/bitOffset",
+      "before": null,
+      "after": 23
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CKS]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CKS]/description",
+      "before": null,
+      "after": "checksum clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[CKS]/name",
+      "before": null,
+      "after": "CKS"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[DMA]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[DMA]/bitOffset",
+      "before": null,
+      "after": 12
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[DMA]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[DMA]/description",
+      "before": null,
+      "after": "DMA clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[DMA]/name",
+      "before": null,
+      "after": "DMA"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[EFUSE]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[EFUSE]/bitOffset",
+      "before": null,
+      "after": 7
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[EFUSE]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[EFUSE]/description",
+      "before": null,
+      "after": "ef_ctrl clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[EFUSE]/name",
+      "before": null,
+      "after": "EFUSE"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[EMAC]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[EMAC]/bitOffset",
+      "before": null,
+      "after": 13
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[EMAC]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[EMAC]/description",
+      "before": null,
+      "after": "EMAC clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[EMAC]/name",
+      "before": null,
+      "after": "EMAC"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[GLB]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[GLB]/bitOffset",
+      "before": null,
+      "after": 0
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[GLB]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[GLB]/description",
+      "before": null,
+      "after": "GLB"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[GLB]/name",
+      "before": null,
+      "after": "GLB"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[GPIP]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[GPIP]/bitOffset",
+      "before": null,
+      "after": 2
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[GPIP]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[GPIP]/description",
+      "before": null,
+      "after": "gpip (gpadc, gpdac) clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[GPIP]/name",
+      "before": null,
+      "after": "GPIP"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[I2C]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[I2C]/bitOffset",
+      "before": null,
+      "after": 19
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[I2C]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[I2C]/description",
+      "before": null,
+      "after": "i2c clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[I2C]/name",
+      "before": null,
+      "after": "I2C"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[I2S]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[I2S]/bitOffset",
+      "before": null,
+      "after": 26
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[I2S]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[I2S]/description",
+      "before": null,
+      "after": "i2s and qdec2 clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[I2S]/name",
+      "before": null,
+      "after": "I2S"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[IRR]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[IRR]/bitOffset",
+      "before": null,
+      "after": 22
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[IRR]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[IRR]/description",
+      "before": null,
+      "after": "ir_remote clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[IRR]/name",
+      "before": null,
+      "after": "IRR"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[KYS]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[KYS]/bitOffset",
+      "before": null,
+      "after": 25
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[KYS]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[KYS]/description",
+      "before": null,
+      "after": "KYS"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[KYS]/name",
+      "before": null,
+      "after": "KYS"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[L1C]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[L1C]/bitOffset",
+      "before": null,
+      "after": 9
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[L1C]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[L1C]/description",
+      "before": null,
+      "after": "L1C (efuse?)"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[L1C]/name",
+      "before": null,
+      "after": "L1C"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MAX]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MAX]/bitOffset",
+      "before": null,
+      "after": 31
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MAX]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MAX]/description",
+      "before": null,
+      "after": "MAX"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MAX]/name",
+      "before": null,
+      "after": "MAX"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MIX]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MIX]/bitOffset",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MIX]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MIX]/description",
+      "before": null,
+      "after": "MIX"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MIX]/name",
+      "before": null,
+      "after": "MIX"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MJPEG]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MJPEG]/bitOffset",
+      "before": null,
+      "after": 30
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MJPEG]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MJPEG]/description",
+      "before": null,
+      "after": "MJPEG"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[MJPEG]/name",
+      "before": null,
+      "after": "MJPEG"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[PDS_HBN_AON_HBNRAM]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[PDS_HBN_AON_HBNRAM]/bitOffset",
+      "before": null,
+      "after": 14
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[PDS_HBN_AON_HBNRAM]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[PDS_HBN_AON_HBNRAM]/description",
+      "before": null,
+      "after": "DS_HBN_AON_HBNRAM"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[PDS_HBN_AON_HBNRAM]/name",
+      "before": null,
+      "after": "PDS_HBN_AON_HBNRAM"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[PWM]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[PWM]/bitOffset",
+      "before": null,
+      "after": 20
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[PWM]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[PWM]/description",
+      "before": null,
+      "after": "pwm clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[PWM]/name",
+      "before": null,
+      "after": "PWM"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[QDEC]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[QDEC]/bitOffset",
+      "before": null,
+      "after": 24
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[QDEC]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[QDEC]/description",
+      "before": null,
+      "after": "qdec0 clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[QDEC]/name",
+      "before": null,
+      "after": "QDEC"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[RSVD0F]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[RSVD0F]/bitOffset",
+      "before": null,
+      "after": 15
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[RSVD0F]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[RSVD0F]/description",
+      "before": null,
+      "after": "RSVD0F"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[RSVD0F]/name",
+      "before": null,
+      "after": "RSVD0F"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[RSVD1B]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[RSVD1B]/bitOffset",
+      "before": null,
+      "after": 27
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[RSVD1B]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[RSVD1B]/description",
+      "before": null,
+      "after": "RSVD1B"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[RSVD1B]/name",
+      "before": null,
+      "after": "RSVD1B"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[S1A_ALL]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[S1A_ALL]/bitOffset",
+      "before": null,
+      "after": 10
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[S1A_ALL]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[S1A_ALL]/description",
+      "before": null,
+      "after": "S1A_ALL (efuse?)"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[S1A_ALL]/name",
+      "before": null,
+      "after": "S1A_ALL"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SEC]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SEC]/bitOffset",
+      "before": null,
+      "after": 4
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SEC]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SEC]/description",
+      "before": null,
+      "after": "sec_eng clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SEC]/name",
+      "before": null,
+      "after": "SEC"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SEC_DBG]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SEC_DBG]/bitOffset",
+      "before": null,
+      "after": 3
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SEC_DBG]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SEC_DBG]/description",
+      "before": null,
+      "after": "sec_dbg clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SEC_DBG]/name",
+      "before": null,
+      "after": "SEC_DBG"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SFC]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SFC]/bitOffset",
+      "before": null,
+      "after": 11
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SFC]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SFC]/description",
+      "before": null,
+      "after": "sf_ctrl clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SFC]/name",
+      "before": null,
+      "after": "SFC"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SPI]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SPI]/bitOffset",
+      "before": null,
+      "after": 18
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SPI]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SPI]/description",
+      "before": null,
+      "after": "spi clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[SPI]/name",
+      "before": null,
+      "after": "SPI"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TMR]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TMR]/bitOffset",
+      "before": null,
+      "after": 21
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TMR]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TMR]/description",
+      "before": null,
+      "after": "timer clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TMR]/name",
+      "before": null,
+      "after": "TMR"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TZ1]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TZ1]/bitOffset",
+      "before": null,
+      "after": 5
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TZ1]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TZ1]/description",
+      "before": null,
+      "after": "TZC clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TZ1]/name",
+      "before": null,
+      "after": "TZ1"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TZ2]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TZ2]/bitOffset",
+      "before": null,
+      "after": 6
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TZ2]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TZ2]/description",
+      "before": null,
+      "after": "TZC2 clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[TZ2]/name",
+      "before": null,
+      "after": "TZ2"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[UART0]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[UART0]/bitOffset",
+      "before": null,
+      "after": 16
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[UART0]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[UART0]/description",
+      "before": null,
+      "after": "uart0 clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[UART0]/name",
+      "before": null,
+      "after": "UART0"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[UART1]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[UART1]/bitOffset",
+      "before": null,
+      "after": 17
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[UART1]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[UART1]/description",
+      "before": null,
+      "after": "uart1 clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[UART1]/name",
+      "before": null,
+      "after": "UART1"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[USB]/access",
+      "before": null,
+      "after": "read-write"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[USB]/bitOffset",
+      "before": null,
+      "after": 28
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[USB]/bitWidth",
+      "before": null,
+      "after": 1
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[USB]/description",
+      "before": null,
+      "after": "usb clock ungate enable"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[USB]/name",
+      "before": null,
+      "after": "USB"
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[cgen_s1]/lsb",
+      "before": 0,
+      "after": null
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[cgen_s1]/msb",
+      "before": 15,
+      "after": null
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[cgen_s1]/name",
+      "before": "cgen_s1",
+      "after": null
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[cgen_s1a]/lsb",
+      "before": 16,
+      "after": null
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[cgen_s1a]/msb",
+      "before": 31,
+      "after": null
+    },
+    {
+      "path": "/peripherals/peripheral[glb]/registers/register[cgen_cfg1]/fields/field[cgen_s1a]/name",
+      "before": "cgen_s1a",
+      "after": null
+    },
+    {
+      "path": "/peripherals/peripheral[gpip]/description",
+      "before": "gpip.",
+      "after": "General purpose DAC/ADC/ACOMP interface control"
+    },
+    {
+      "path": "/peripherals/peripheral[kys]/description",
+      "before": "kys.",
+      "after": "Key Scan"
+    },
+    {
+      "path": "/peripherals/peripheral[l1c]/description",
+      "before": "l1c.",
+      "after": "L1 Cache control"
+    },
+    {
+      "path": "/peripherals/peripheral[pds]/description",
+      "before": "pds.",
+      "after": "Sleep control (Power Down Sleep)"
+    },
+    {
+      "path": "/peripherals/peripheral[qdec]/description",
+      "before": "qdec.",
+      "after": "Quadrature decoder control"
+    }
+  ]
+}
