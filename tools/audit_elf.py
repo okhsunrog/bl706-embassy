@@ -87,8 +87,8 @@ def audit(path, fpu=False, probes=False):
 
 if __name__ == "__main__":
     for target, fpu, names in [
-        ("riscv32imc-unknown-none-elf", False, ["heartbeat", "fusb302"]),
-        ("riscv32imfc-unknown-none-elf", True, ["heartbeat", "fusb302", "fpu"]),
+        ("riscv32imc-unknown-none-elf", False, ["heartbeat", "fusb302", "i2c_latency"]),
+        ("riscv32imfc-unknown-none-elf", True, ["heartbeat", "fusb302", "i2c_latency", "fpu"]),
     ]:
         for binary in names:
             audit(ROOT/"target"/target/"release"/binary, fpu=fpu)

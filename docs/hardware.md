@@ -46,6 +46,9 @@ GPIO23..28 учитывают `GPIO_USE_PSRAM__IO`: SDK может перена�
 - `heartbeat`: UART banner, счётчик/время раз в секунду, кнопки и уровень PD_IRQ.
 - `fusb302`: `write_read(0x22, [DEVICE_ID=0x01], 1 byte)` раз в секунду, печать Result.
   Не читает read-to-clear INTERRUPT, не пишет RESET, не ведёт USB-PD negotiation.
+- `i2c_latency`: чтение девяти readable registers FUSB302 (0x01..0x09) с блокировкой
+  executor на 20 ms внутри первого Pending poll, при включённых IRQ. Передача
+  больше FIFO должна продвигаться из ISR. Пример пока только собран.
 - `fpu`: IMFC f32 result, FS/fcsr, Timer.
 - `atomics`: отдельные однократные probes собственной RAM, см. [atomics](atomics.md).
 
@@ -96,14 +99,21 @@ memory/reset contract. Не заменять это произвольной з�
 7. **I²C failures:** NACK на заведомо незанятом адресе; удержание SDA/SCL; timeout;
    отмена future посреди передачи; затем удачная новая транзакция. Проверить, что
    после drop отключены CLIC/I²C masks, m_en=0, FIFO очищены. При физически зажатой
-   линии controller cleanup не заменяет bus recovery. Никаких обещаний auto-recovery.
+   линии controller cleanup не заменяет bus recovery. При error/cancel внешний
+   RX-буфер должен оставаться неизменным. Никаких обещаний auto-recovery.
 8. **FIFO/transactions:** на внешнем тестовом slave прогнать read/write lengths
    1,2,3,4,5,7,8,9,255,256; sub-address 1..4; проверить порядок байтов и отсутствие
    padding на проводе. Unsupported shapes/zero/257 не должны начинать обмен.
    Проверить data NACK, ARB loss и FIFO error при возможной инъекции.
 9. **Concurrency:** timer task продолжает исполняться во время I²C/timeout.
-   Проверить register→status→unmask гонку, IRQ между polls и stop transfer после cancel.
-   Длительный UART polling временно блокирует cooperative executor; учитывать это.
+   Проверить completion до регистрации waker, IRQ между polls, late END/final RX
+   word и stop transfer после cancel. Запустить `i2c_latency`: ожидать stalled=true,
+   успешный обмен и корректные девять байт на analyzer, несмотря на 20 ms без
+   polling future. При намеренной задержке waiter аппаратная операция должна
+   завершиться и отключить IRQ/controller непосредственно в ISR. Отдельно
+   измерить задержку ISR, влияние других ненестированных IRQ и critical sections.
+   Длительный UART polling блокирует cooperative executor, но при MIE=1 не должен
+   мешать FIFO service. Он по-прежнему может задерживать PD policy и timers tasks.
 10. **FPU:** проверить FS/fcsr и битовый результат примера. Под отладчиком заполнить
     все FPR различимыми sentinel, вызвать MTIME/I²C IRQ с изменением FP-регистров
     внутри handler и сравнить f0..f31/fcsr/mstatus после mret. Проверить stack watermark.

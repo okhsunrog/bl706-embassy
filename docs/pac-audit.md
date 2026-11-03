@@ -53,6 +53,8 @@ RF из andelf не импортирован: это существенное д
 - UART0: divider, free-run, 8N1, FIFO count и byte data, signal mux.
 - I²C: packet length **N−1**, sub-address **N−1** и LSB-first, repeated START,
   FIFO **два 32-битных слова**, END/NAK/ARB/FIFO error и mask/enable/W1C в одном регистре.
+  FIFO обслуживается из ISR через внутренний packet buffer; mixed status/control
+  поля не очищаются при переустановке masks. См. [i2c.md](i2c.md).
 - Core-local CLIC/mtime отсутствуют в SVD. Адреса берутся из SDK `e24/clic.h`
   и сверены с SiFive manual. Это небольшой ручной слой HAL, не выдаваемый за SVD-генерацию.
 

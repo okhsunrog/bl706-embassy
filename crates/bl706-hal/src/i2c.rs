@@ -6,7 +6,8 @@ use crate::{
     gpio::{Pin, Pull},
     interrupt, pac,
 };
-use core::{future::poll_fn, task::Poll};
+use core::{cell::RefCell, future::poll_fn, task::Poll};
+use critical_section::Mutex;
 use embassy_sync::waitqueue::AtomicWaker;
 use embassy_time::{Duration, with_timeout};
 use embedded_hal::i2c::{ErrorKind, ErrorType, NoAcknowledgeSource, Operation};
@@ -14,10 +15,10 @@ use embedded_hal::i2c::{ErrorKind, ErrorType, NoAcknowledgeSource, Operation};
 #[path = "i2c_logic.rs"]
 mod logic;
 static WAKER: AtomicWaker = AtomicWaker::new();
+static TRANSFER: Mutex<RefCell<logic::Transfer>> = Mutex::new(RefCell::new(logic::Transfer::new()));
 const ALL: u32 = 0x3f;
 const CLEAR: u32 = (1 << 16) | (1 << 19) | (1 << 20);
 const ENABLE: u32 = ALL << 24;
-const ERRORS: u32 = (1 << 3) | (1 << 4) | (1 << 5);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
@@ -29,6 +30,16 @@ pub enum Error {
     Fifo,
     ShortTransfer,
     Timeout,
+}
+impl From<logic::TransferError> for Error {
+    fn from(error: logic::TransferError) -> Self {
+        match error {
+            logic::TransferError::NoAcknowledge => Self::NoAcknowledge,
+            logic::TransferError::ArbitrationLost => Self::ArbitrationLost,
+            logic::TransferError::Fifo => Self::Fifo,
+            logic::TransferError::ShortTransfer => Self::ShortTransfer,
+        }
+    }
 }
 impl embedded_hal::i2c::Error for Error {
     fn kind(&self) -> ErrorKind {
@@ -107,69 +118,58 @@ impl I2c {
         if address > 0x7f {
             return Err(Error::InvalidAddress);
         }
-        if !(1..=256).contains(&len) || sub.len() > 4 {
+        if !(1..=logic::MAX_PACKET).contains(&len) || sub.len() > 4 {
             return Err(Error::Unsupported);
         }
-        if pac::I2C.i2c_bus_busy().read().sts_i2c_bus_busy() {
-            return Err(Error::BusBusy);
-        }
-        abort();
-        let guard = TransferGuard;
-        pac::I2C.i2c_sub_addr().write(|r| r.0 = logic::pack(sub));
-        pac::I2C.i2c_config().write(|r| {
-            r.set_cr_i2c_pkt_dir(buffer.is_read());
-            r.set_cr_i2c_scl_sync_en(true);
-            r.set_cr_i2c_sub_addr_en(!sub.is_empty());
-            r.set_cr_i2c_sub_addr_bc(sub.len().saturating_sub(1) as u8);
-            r.set_cr_i2c_slv_addr(address);
-            r.set_cr_i2c_pkt_len((len - 1) as u8);
-        });
-        let mut done = 0;
-        if let Buffer::Write(bytes) = &buffer {
-            push(bytes, &mut done);
-        }
-        pac::I2C.i2c_config().modify(|r| r.set_cr_i2c_m_en(true));
+        let guard = critical_section::with(|cs| {
+            let mut transfer = TRANSFER.borrow(cs).borrow_mut();
+            // A forgotten future can leave an owned packet running. Never
+            // overwrite it while the ISR is still servicing that packet.
+            if transfer.is_active() || pac::I2C.i2c_bus_busy().read().sts_i2c_bus_busy() {
+                return Err(Error::BusBusy);
+            }
+            let mut hw = RegisterHardware;
+            transfer.cancel(&mut hw);
+            pac::I2C.i2c_sub_addr().write(|r| r.0 = logic::pack(sub));
+            pac::I2C.i2c_config().write(|r| {
+                r.set_cr_i2c_pkt_dir(buffer.is_read());
+                r.set_cr_i2c_scl_sync_en(true);
+                r.set_cr_i2c_sub_addr_en(!sub.is_empty());
+                r.set_cr_i2c_sub_addr_bc(sub.len().saturating_sub(1) as u8);
+                r.set_cr_i2c_slv_addr(address);
+                r.set_cr_i2c_pkt_len((len - 1) as u8);
+            });
+            match &buffer {
+                Buffer::Read(_) => transfer.begin_read(len),
+                Buffer::Write(bytes) => transfer.begin_write(bytes),
+            }
+            // Only the pre-start TX preload runs in the task. All subsequent
+            // FIFO progress and terminal/error latching belong to the ISR.
+            transfer.prime(&mut hw);
+            unsafe { interrupt::enable(interrupt::I2C) };
+            pac::I2C.i2c_config().modify(|r| r.set_cr_i2c_m_en(true));
+            unsafe { core::arch::asm!("fence iorw, iorw") };
+            Ok(TransferGuard)
+        })?;
         let result = with_timeout(
             self.timeout,
             poll_fn(|cx| {
-                critical_section::with(|_| {
-                    // Register first, then inspect status, then unmask. A level IRQ
-                    // arriving between these operations remains observable.
+                critical_section::with(|cs| {
+                    // Completion may precede the first poll. Register first,
+                    // then observe the latched result; the IRQ never waits for
+                    // executor progress and never uses the caller's buffer.
                     WAKER.register(cx.waker());
-                    let status = pac::I2C.i2c_int_sts().read().0;
-                    if status & (1 << 3) != 0 {
-                        return Poll::Ready(Err(Error::NoAcknowledge));
+                    let transfer = TRANSFER.borrow(cs).borrow();
+                    match transfer.result() {
+                        Some(Ok(())) => {
+                            if let Buffer::Read(out) = &mut buffer {
+                                transfer.copy_read(out);
+                            }
+                            Poll::Ready(Ok(()))
+                        }
+                        Some(Err(error)) => Poll::Ready(Err(error.into())),
+                        None => Poll::Pending,
                     }
-                    if status & (1 << 4) != 0 {
-                        return Poll::Ready(Err(Error::ArbitrationLost));
-                    }
-                    if status & (1 << 5) != 0 {
-                        return Poll::Ready(Err(Error::Fifo));
-                    }
-                    match &mut buffer {
-                        Buffer::Read(bytes) => pull(bytes, &mut done),
-                        Buffer::Write(bytes) => push(bytes, &mut done),
-                    }
-                    if status & 1 != 0 {
-                        return Poll::Ready(if done == len {
-                            Ok(())
-                        } else {
-                            Err(Error::ShortTransfer)
-                        });
-                    }
-                    let fifo = if done == len {
-                        0
-                    } else if buffer.is_read() {
-                        1 << 2
-                    } else {
-                        1 << 1
-                    };
-                    // Explicit write: status and W1C fields share this register.
-                    pac::I2C
-                        .i2c_int_sts()
-                        .write(|r| r.0 = ENABLE | ((ALL & !(1 | ERRORS | fifo)) << 8));
-                    unsafe { interrupt::enable(interrupt::I2C) };
-                    Poll::Pending
                 })
             }),
         )
@@ -179,31 +179,50 @@ impl I2c {
     }
 }
 
-fn push(bytes: &[u8], done: &mut usize) {
-    // Count is available FIFO words, not bytes (depth = two words).
-    logic::push(
-        bytes,
-        done,
-        || pac::I2C.i2c_fifo_config_1().read().tx_fifo_cnt(),
-        |word| pac::I2C.i2c_fifo_wdata().write(|r| r.0 = word),
-    );
-}
-fn pull(bytes: &mut [u8], done: &mut usize) {
-    logic::pull(
-        bytes,
-        done,
-        || pac::I2C.i2c_fifo_config_1().read().rx_fifo_cnt(),
-        || pac::I2C.i2c_fifo_rdata().read().0,
-    );
+/// MMIO is private to the owned transfer engine and its initialization path.
+struct RegisterHardware;
+impl logic::Hardware for RegisterHardware {
+    fn status(&mut self) -> u32 {
+        pac::I2C.i2c_int_sts().read().0
+    }
+    fn tx_space(&mut self) -> u8 {
+        pac::I2C.i2c_fifo_config_1().read().tx_fifo_cnt()
+    }
+    fn rx_words(&mut self) -> u8 {
+        pac::I2C.i2c_fifo_config_1().read().rx_fifo_cnt()
+    }
+    fn write_word(&mut self, word: u32) {
+        pac::I2C.i2c_fifo_wdata().write(|r| r.0 = word);
+    }
+    fn read_word(&mut self) -> u32 {
+        pac::I2C.i2c_fifo_rdata().read().0
+    }
+    fn listen(&mut self, events: u32) {
+        // Explicit write: status, masks, enables and W1C share this register.
+        // No clear bits during service/rearming: an END/error may race this write.
+        pac::I2C
+            .i2c_int_sts()
+            .write(|r| r.0 = ENABLE | ((ALL & !events) << 8));
+    }
+    fn stop(&mut self) {
+        interrupt::disable(interrupt::I2C);
+        pac::I2C.i2c_config().modify(|r| r.set_cr_i2c_m_en(false));
+        pac::I2C.i2c_int_sts().write(|r| r.0 = (ALL << 8) | CLEAR);
+        pac::I2C
+            .i2c_fifo_config_0()
+            .write(|r| r.0 = (1 << 2) | (1 << 3));
+        unsafe { core::arch::asm!("fence iorw, iorw") };
+    }
 }
 fn abort() {
-    interrupt::disable(interrupt::I2C);
-    pac::I2C.i2c_config().modify(|r| r.set_cr_i2c_m_en(false));
-    pac::I2C.i2c_int_sts().write(|r| r.0 = (ALL << 8) | CLEAR);
-    pac::I2C
-        .i2c_fifo_config_0()
-        .write(|r| r.0 = (1 << 2) | (1 << 3));
+    critical_section::with(|cs| {
+        TRANSFER
+            .borrow(cs)
+            .borrow_mut()
+            .cancel(&mut RegisterHardware)
+    });
 }
+
 struct TransferGuard;
 impl Drop for TransferGuard {
     fn drop(&mut self) {
@@ -216,10 +235,19 @@ impl Drop for I2c {
     }
 }
 pub(crate) fn on_interrupt() {
-    // Buffer pointers are never shared with the ISR. The task services FIFO.
-    interrupt::disable(interrupt::I2C);
-    WAKER.wake();
+    let completed = critical_section::with(|cs| {
+        TRANSFER
+            .borrow(cs)
+            .borrow_mut()
+            .on_interrupt(&mut RegisterHardware)
+    });
+    // Wake only on completion/error, after dropping the state borrow. FIFO
+    // interrupts leave the CPU line enabled and are serviced entirely here.
+    if completed {
+        WAKER.wake();
+    }
 }
+
 impl ErrorType for I2c {
     type Error = Error;
 }

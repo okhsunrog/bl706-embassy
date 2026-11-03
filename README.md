@@ -8,7 +8,7 @@
 
 - `bl706-pac`: полный набор блоков из официального SVD, генерация **chiptool** с проверяемыми исправлениями. Проверена только часть регистров; границы аудита описаны отдельно.
 - `bl706-hal`: RAM startup, nominal RC32M, GPIO, UART0 TX, CLIC, Embassy executor и time driver, IRQ-driven async I²C для регистровых устройств.
-- `examples/pinecil-v2`: heartbeat, чтение FUSB302, FPU и отдельная ограниченная диагностика атомиков.
+- `examples/pinecil-v2`: heartbeat, чтение FUSB302, проверка задержки executor, FPU и отдельная ограниченная диагностика атомиков.
 
 ## Сборка
 
@@ -25,7 +25,7 @@ Nix предоставляет компилятор, `rust-src`, chiptool, uv, L
 
 ```sh
 nix build .#firmware
-# result/bin/heartbeat.elf и result/bin/fusb302.elf
+# result/bin/{heartbeat,fusb302,i2c_latency}.elf
 nix flake check
 ```
 
@@ -41,7 +41,7 @@ IMFC является встроенным tier-3 target Rust. Alias `firmware-f
 через `-Zbuild-std=core`; custom JSON не нужен. **Обе конфигурации исключают `A`.**
 Сборка HAL для A-target или IMFC без `fpu` намеренно отклоняется.
 
-ELF находятся в `target/<target>/release/{heartbeat,fusb302,fpu}`.
+ELF находятся в `target/<target>/release/{heartbeat,fusb302,i2c_latency,fpu}`.
 Все они предназначены для загрузки **в RAM через JTAG/GDB**. Они не содержат flash/boot header;
 передавать их или результат обычного objcopy в `blisp flash` нельзя.
 
@@ -79,6 +79,7 @@ uv run --no-project tools/check_svd.py
 - UART0: TX на GPIO22, 115200 8N1 в примерах. RX GPIO23 не реализован.
 - GPIO: входы/выходы и sampled async `wait_for_low`; GPIO IRQ ещё не реализован. FUSB302 IRQ читается на GPIO16.
 - I²C: один пакет 1..256 байт; `write_read` с 1..4 байтами sub-address использует hardware repeated START. Другие формы `transaction` и пустые пакеты возвращают `Unsupported` до начала обмена. Автоматического bit-bang bus recovery нет.
+- FIFO обслуживается из ISR; задача только ждёт результат. Используется внутренний 256-байтный packet buffer, чтобы ISR не хранил указатели на память вызывающего кода. Подробности и отмена: [I²C](docs/i2c.md).
 - Read-only probe FUSB302 не реализует USB-PD policy engine и не запрашивает повышенное напряжение.
 - Time queue рассчитана на восемь различных ожидающих waker. Это начальное ограничение конфигурации, не общий предел Embassy.
 
