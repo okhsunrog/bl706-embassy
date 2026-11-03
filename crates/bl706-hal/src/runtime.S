@@ -38,7 +38,11 @@ bl706_vectors:
     .word bl706_fatal_trap
     .endr
     .word bl706_irq_entry
-    .rept 31
+    .rept 11
+    .word bl706_fatal_trap
+    .endr
+    .word bl706_irq_entry
+    .rept 19
     .word bl706_fatal_trap
     .endr
 

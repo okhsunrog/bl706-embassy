@@ -15042,7 +15042,7 @@ pub mod glb {
         #[inline(always)]
         pub const fn GPIO_INT_CLR1(
             self,
-        ) -> crate::common::Reg<regs::GPIO_INT_CLR1, crate::common::W> {
+        ) -> crate::common::Reg<regs::GPIO_INT_CLR1, crate::common::RW> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x01b0usize) as _) }
         }
         #[doc = "GPIO_INT_MODE_SET1."]
@@ -15084,7 +15084,7 @@ pub mod glb {
         #[inline(always)]
         pub const fn GPIO_INT2_STAT1(
             self,
-        ) -> crate::common::Reg<regs::GPIO_INT2_STAT1, crate::common::RW> {
+        ) -> crate::common::Reg<regs::GPIO_INT2_STAT1, crate::common::R> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x01d4usize) as _) }
         }
         #[doc = "GPIO_INT2_CLR1."]

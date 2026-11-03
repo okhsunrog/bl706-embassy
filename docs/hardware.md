@@ -50,6 +50,9 @@ GPIO23..28 учитывают `GPIO_USE_PSRAM__IO`: SDK может перена�
   executor на 20 ms внутри первого Pending poll, при включённых IRQ. Передача
   больше FIFO должна продвигаться из ISR. Пример пока только собран.
 - `fpu`: IMFC f32 result, FS/fcsr, Timer.
+- `gpio_irq`: три независимых GPIO waiters и UART reporter: кнопка A any-edge с
+  timeout/cancel/rearm, кнопка B rising/falling, FUSB302 INT_N low/high.
+  Без debounce и без очистки FUSB302 interrupt registers; подробности [gpio.md](gpio.md).
 - `atomics`: отдельные однократные probes собственной RAM, см. [atomics](atomics.md).
 
 Read-only probe намеренно не проверяет ID на одно фиксированное значение:
@@ -92,7 +95,14 @@ memory/reset contract. Не заменять это произвольной з�
    cancellation и повторное использование waker. Принудительно поставить mtime
    около rollover low32 и проверить hi/lo/hi чтение. Измерить дрейф RC.
 5. **GPIO:** проверить кнопки и PD_IRQ полярность, SF pad remapping для GPIO25/28.
-   Изменения OE не должны давать импульс heater. GPIO IRQ здесь не реализован.
+   Изменения OE не должны давать импульс heater. Запустить `gpio_irq`, проверить
+   IRQ 60 и возврат, rising/falling/any-edge обоих кнопок, несколько simultaneous
+   pins, timeout/cancel/rearm без stale completion. Уже активные low/high должны
+   завершаться сразу, edges ждать нового фронта. Проверить оба детектора и CLR
+   pulse осциллографом/чтением регистров. Удержание INT_N low не должно создавать
+   IRQ storm или мешать timer/UART. Для FUSB302 достаточно наблюдения; read-only
+   пример не снимает latched INT_N. На отдельном свободном входе проверить внешние
+   импульсы разной ширины и latency при I²C/mtime IRQ; не подавать их на линии heater.
 6. **I²C analyzer:** для DEVICE_ID увидеть START, 0x44(W), 0x01, repeated START,
    0x45(R), byte, master NACK и STOP. Проверить именно GPIO10=SCL/GPIO11=SDA,
    фактическую скорость около 100 kHz, clock stretching и отсутствие переполнений.

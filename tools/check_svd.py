@@ -53,4 +53,15 @@ for p, n in [("uart0",45),("uart1",46),("i2c",48),("glb",60)]:
 fields = ps["glb"].find("./registers/register[name='cgen_cfg1']/fields")
 for name, bit in [("uart0",16),("uart1",17),("i2c",19),("timer",21)]:
     assert int(fields.find(f"./field[name='{name}']/bitOffset").text) == bit
+for name, offset, access in [
+    ("GPIO_INT_MASK1", 0x1a0, "read-write"),
+    ("GPIO_INT_STAT1", 0x1a8, "read-only"),
+    ("GPIO_INT_CLR1", 0x1b0, "read-write"),
+    ("GPIO_INT2_MASK1", 0x1d0, "read-write"),
+    ("GPIO_INT2_STAT1", 0x1d4, "read-only"),
+    ("GPIO_INT2_CLR1", 0x1d8, "read-write"),
+]:
+    register = ps["glb"].find(f"./registers/register[name='{name}']")
+    assert int(register.findtext("addressOffset"), 0) == offset
+    assert register.findtext("access", "read-write") == access
 print("SVD source comparison and reviewed base/IRQ/gate assertions OK")

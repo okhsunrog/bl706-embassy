@@ -17,6 +17,7 @@
 | [Bouffalo atomic discussion](https://bbs.bouffalolab.com/d/133-atomic-memory-operations) | 2022-04 | Сообщение о trap AMO на RAM BL702 и ответ о неподдерживаемом доступе по шине |
 | [FUSB302B datasheet](https://www.onsemi.com/pdf/datasheet/fusb302b-d.pdf) | tables 15–16 | 7-bit 0x22, DEVICE_ID 0x01; ID зависит от варианта |
 | [chiptool](https://github.com/embassy-rs/chiptool/tree/bcf538a2e7b8584ae874ee9ab72efb1576fc6152) | `bcf538a2e7b8584ae874ee9ab72efb1576fc6152` | Генератор, lockfile сохранён в tools |
+| [Embassy](https://github.com/embassy-rs/embassy/tree/4c0da6097c5b3ce078473016d7c4654f90693afa) | `4c0da6097c5b3ce078473016d7c4654f90693afa` | Сравнение async I²C и GPIO: RP GPIO/InputFuture, STM32 EXTI one-shot waits, mask/wake/cancel; [GPIO](gpio.md) |
 
 Текущий SDK больше не содержит этого SVD. Исторический файл загружен именно из
 официального namespace; его SHA-256 совпадает с копией в IronOS. Версии master_legacy

@@ -60,8 +60,9 @@ for name, bit, width in [("cgen_s1", 0, 16), ("uart0", 16, 1), ("uart1", 17, 1),
 # Register-level access for the HAL's reviewed I/O. Mixed status/control regs
 # remain RW: W1C handling must use explicit writes, never generic RMW.
 for p, names, access in [
-    ("glb", ["GPIO_CFGCTL30", "GPIO_INT_STAT1"], "read-only"),
-    ("glb", ["GPIO_INT_CLR1"], "write-only"),
+    ("glb", ["GPIO_CFGCTL30", "GPIO_INT_STAT1", "GPIO_INT2_STAT1"], "read-only"),
+    # GPIO clear bits are RW levels pulsed 1 -> 0 by the SDK, not W1C.
+    ("glb", ["GPIO_INT_CLR1", "GPIO_INT2_CLR1"], "read-write"),
     ("i2c", ["i2c_fifo_rdata"], "read-only"),
     ("i2c", ["i2c_fifo_wdata"], "write-only"),
     ("uart", ["uart_fifo_rdata", "uart_status"], "read-only"),

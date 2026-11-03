@@ -33,7 +33,7 @@ GPIO arrays в YAML **закомментированы**, поэтому не я
 | UART1 `0x4000A100`, QDEC1/2 `0x4000A840/880` | RM memory map и SDK | одинаковая layout с исходным экземпляром |
 | UART0/1/I²C/GPIO IRQ 45/46/48/60 | SDK IRQ_NUM_BASE=16; RM источники 29/30/32/44 | XML, HAL CLIC map |
 | cgen_cfg1 gates UART0=16, UART1=17, SPI=18, I²C=19, PWM=20, TIMER=21, IR=22 | SDK `GLB_AHB_Get_Clock` / `UnGate` | именованные setters, XML asserts |
-| GPIO input/status RO, clear WO; I²C FIFO data RO/WO; UART status/RX RO, TX/clear WO | RM register access, SDK headers | типы `Reg<...,R/W>` |
+| GPIO input и оба IRQ status RO, оба GPIO clear RW; I²C FIFO data RO/WO; UART status/RX RO, TX/clear WO | RM register access, SDK headers | типы `Reg<...,R/RW/W>` |
 
 Остальные gates сохранены сгруппированными. У andelf KYS обозначен bit25, тогда как
 современный SDK использует bit27; bits24–26 связаны также с QDEC/I²S. Без нужды для
@@ -50,6 +50,10 @@ RF из andelf не импортирован: это существенное д
   `GLB_Set_System_CLK[_Div]`, `GLB_Set_UART_CLK`, `GLB_Set_I2C_CLK`, `GLB_Set_MTimer_CLK`.
 - GPIO packed config: два pad на word, IE/SMT/pull/func; data и OE offsets
   `0x180/188/190`; SF/PSRAM pad remapping для GPIO23..28 по `GPIO_USE_PSRAM__IO`.
+- GPIO IRQ: оба MASK/STAT/CLR/MODE banks, общий IRQ 60, async modes 4..7,
+  packed 3-bit fields. Исправлена прежняя неточная WO-аннотация GPIO_INT_CLR1:
+  по RM это RW-регистр, SDK делает pulse 1 → 0. Второй STAT теперь RO.
+  Ожидания one-shot, ISR mask-before-clear, cancel/rearm. См. [gpio.md](gpio.md).
 - UART0: divider, free-run, 8N1, FIFO count и byte data, signal mux.
 - I²C: packet length **N−1**, sub-address **N−1** и LSB-first, repeated START,
   FIFO **два 32-битных слова**, END/NAK/ARB/FIFO error и mask/enable/W1C в одном регистре.

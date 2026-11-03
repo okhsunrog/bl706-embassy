@@ -13,6 +13,8 @@ cargo fmt --all --check
 cargo test --locked -p bl706-pac
 rustc --edition 2024 --test crates/bl706-hal/src/i2c_logic.rs -o "$diagnostics/i2c-logic-tests"
 "$diagnostics/i2c-logic-tests"
+rustc --edition 2024 --test crates/bl706-hal/src/gpio_irq.rs -o "$diagnostics/gpio-irq-tests"
+"$diagnostics/gpio-irq-tests"
 cargo firmware --locked
 cargo firmware-fpu --locked
 cargo build --locked --release -p pinecil-v2-bringup --bin atomics --features atomic-probe --target riscv32imc-unknown-none-elf

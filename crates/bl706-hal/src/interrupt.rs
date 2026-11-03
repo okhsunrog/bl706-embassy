@@ -2,6 +2,7 @@
 use core::ptr::{read_volatile, write_volatile};
 pub const MTIME: u8 = 7;
 pub const I2C: u8 = 48;
+pub const GPIO: u8 = 60;
 const BASE: usize = 0x0280_0000;
 
 pub(crate) unsafe fn init() {
@@ -15,7 +16,7 @@ pub(crate) unsafe fn init() {
     }
 }
 
-/// Enable an initialized handler. This runtime installs MTIME and I2C only.
+/// Enable an initialized handler. This runtime installs MTIME, I2C and GPIO.
 /// # Safety
 /// The caller must own the peripheral and initialize all handler state.
 pub unsafe fn enable(n: u8) {
@@ -44,6 +45,7 @@ extern "C" fn bl706_irq_dispatch(number: usize) {
     match number {
         7 => crate::time::on_interrupt(),
         48 => crate::i2c::on_interrupt(),
+        60 => crate::gpio::on_interrupt(),
         _ => unreachable!(),
     }
 }

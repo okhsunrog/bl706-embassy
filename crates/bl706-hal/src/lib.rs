@@ -34,6 +34,7 @@ pub fn init() -> Peripherals {
         // after the critical section, so no interrupt can observe partial state.
         unsafe {
             interrupt::init();
+            gpio::init();
             let clocks = clock::init();
             time::init();
             Peripherals {

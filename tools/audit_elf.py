@@ -47,8 +47,8 @@ def audit(path, fpu=False, probes=False):
     sh = sections[".vectors"]
     vectors = struct.unpack_from("<80I", data, sh[4])
     assert sh[5] == 320
-    assert vectors[7] == vectors[48] == syms["bl706_irq_entry"]
-    assert all(v == syms["bl706_fatal_trap"] for i,v in enumerate(vectors) if i not in (7,48))
+    assert vectors[7] == vectors[48] == vectors[60] == syms["bl706_irq_entry"]
+    assert all(v == syms["bl706_fatal_trap"] for i,v in enumerate(vectors) if i not in (7,48,60))
     atomic = []
     float_ops = 0
     saved, restored = set(), set()
@@ -87,8 +87,8 @@ def audit(path, fpu=False, probes=False):
 
 if __name__ == "__main__":
     for target, fpu, names in [
-        ("riscv32imc-unknown-none-elf", False, ["heartbeat", "fusb302", "i2c_latency"]),
-        ("riscv32imfc-unknown-none-elf", True, ["heartbeat", "fusb302", "i2c_latency", "fpu"]),
+        ("riscv32imc-unknown-none-elf", False, ["heartbeat", "fusb302", "i2c_latency", "gpio_irq"]),
+        ("riscv32imfc-unknown-none-elf", True, ["heartbeat", "fusb302", "i2c_latency", "gpio_irq", "fpu"]),
     ]:
         for binary in names:
             audit(ROOT/"target"/target/"release"/binary, fpu=fpu)
