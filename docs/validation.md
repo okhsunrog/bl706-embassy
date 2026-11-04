@@ -63,8 +63,19 @@ Subsequent direct GLB accesses through probe-rs SBA stalled the debug bus, while
 OpenOCD CPU program-buffer access continued to work. A GLB-specific probe-rs
 access override in probe-rs commit `b6976df6e` now reads GPIO configuration and
 output registers correctly on the board; it preserves SBA for RAM/flash. The
-global CLI and flashprobe-mcp use that revision. The uninterrupted 10-minute heartbeat is
-still pending. Hardware logs for this session are under
+global CLI and flashprobe-mcp use that revision.
+
+After another cold ROM boot (PC `0x21004116`), the same checked RAM load and
+explicit resume completed a 600-second RTT capture through the updated MCP.
+The log contains 636 consecutive ticks (0..635, including output buffered before
+attach), with monotonically increasing mtime and no panic/restart. This does not
+calibrate the oscillator against an external reference. Afterwards the patched
+CLI read GLB GPIO registers correctly, the RTT control-block signature remained
+valid and all three words of `BL706_TRAP` were zero. GPIO21 remained enabled and
+low (`GPIO_CFGCTL32=0`, `GPIO_CFGCTL34=0x00204200`). A fresh 15-second RTT
+capture after these accesses also produced consecutive ticks successfully.
+
+Hardware logs for this session are under
 `/home/okhsunrog/tmp_zfs/codex_tmp/grapple-probe-pico/`.
 
 The 39 host tests exercise production logic but not the physical MCU. PAC generation
