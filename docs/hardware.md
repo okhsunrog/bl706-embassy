@@ -32,7 +32,7 @@
 | UART RX | 23 | драйвер RX не реализован |
 | I²C SCL | 10 | function6 |
 | I²C SDA | 11 | function6 |
-| FUSB302 INT_N | 16 | input pull-up, sampled state |
+| FUSB302 INT_N | 16 | input pull-up, GPIO IRQ/level waits |
 | Button A / B | 25 / 28 | input pull-down |
 
 У IronOS `Pins.h` SCL/SDA подписаны наоборот. Его `pinmux_config.h` на обоих
@@ -54,6 +54,9 @@ GPIO23..28 учитывают `GPIO_USE_PSRAM__IO`: SDK может перена�
   timeout/cancel/rearm, кнопка B rising/falling, FUSB302 INT_N low/high.
   Без debounce и без очистки FUSB302 interrupt registers; подробности [gpio.md](gpio.md).
 - `atomics`: отдельные однократные probes собственной RAM, см. [atomics](atomics.md).
+- `analog`: ADC scan CH10/9/8, TIMER1 compare, unrouted PWM0 period IRQ, лог trim и samples.
+- `sampling`: TIMER0 ISR владеет ADC и unrouted PWM1; три compare-фазы, latest frame
+  через Signal. GPIO21 остаётся low; это dry-run без нагревателя, см. [analog.md](analog.md).
 
 Read-only probe намеренно не проверяет ID на одно фиксированное значение:
 варианты FUSB302 и FUSB302B отличаются. Зафиксировать фактическую маркировку U1 и ID.
@@ -130,6 +133,29 @@ memory/reset contract. Не заменять это произвольной з�
 11. **Atomics:** отдельный binary, записать результаты и traps обеих probes,
     не включать A-target по результату одной успешной операции. Проверку других
     aliases/памяти/DMA проектировать отдельно; произвольные MMIO не использовать.
+12. **TIMER:** в `analog` проверить IRQ 53 и независимость `mtime`, затем IRQ 52 в
+    `sampling`. Прочитать shared TCCR/TCDR/TCER/TCMR до/после настройки второго канала,
+    убедиться, что первый канал и watchdog fields не изменились. Capture request
+    должен давать меняющийся count. Измерить реальные compare/preload интервалы,
+    включая SDK offset в два тика, stop/restart, rollover, cancel/rearm, pending до
+    waker. 32K/1K отдельно проверять только после установления их clock readiness.
+13. **ADC:** сначала GND с `Adc<()>`, затем CH8/9/10 с известным напряжением и
+    измерением мультиметром. Проверить FIFO channel tags (negative=23), порядок
+    восьми позиций, 12/14/16-bit alignment, короткие scans 1..12, timeout/cancel/reuse,
+    overrun/underrun/saturation. Зафиксировать доступность boot shadow, enable/parity
+    trim и различие raw/calibrated readings; не считать отсутствие ошибки калибровкой.
+    Проверить 100 us restart pause, analog settling, reference и влияние нагрева
+    только в отдельном, явно подготовленном аппаратном тесте. Здесь нагрев не включать.
+14. **PWM:** начать с unrouted counter/IRQ 49. Для waveform выбрать отдельный
+    проверенный pad/fixture, не GPIO21. Проверить divider/period, duty 0/50/100%,
+    enable/disable/drop-low, STS_TOP timeout и period IRQ clear 1→0. Одновременные
+    каналы/IRQ не должны менять соседние masks; cancel не должен отключать чужой PWM.
+15. **Dry-run sampling:** при GPIO21 low проверить три фазы TIMER0/ADC и выход frames.
+    Задержать cooperative task, оставив MIE=1: ISR должен продолжать цикл, Signal
+    может пропускать frames. Отдельно задержать IRQ до coalesced compare или ошибки
+    ADC и проверить остановку dry-run. Измерить latency и stack watermark под
+    одновременной нагрузкой I²C/GPIO/mtime; эта проверка ещё не является допуском
+    к реальному управлению нагревателем.
 
 Ни один пункт этого списка пока не выполнен на железе. Для дальнейшего обычного
 USB flashing отдельно потребуются boot header, flash parameters, boot2/ROM contract,

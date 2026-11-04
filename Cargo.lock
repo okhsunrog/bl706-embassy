@@ -391,6 +391,7 @@ version = "0.1.0"
 dependencies = [
  "bl706-hal",
  "embassy-executor",
+ "embassy-sync",
  "embassy-time",
  "static_cell",
 ]

@@ -7,8 +7,8 @@
 В workspace:
 
 - `bl706-pac`: полный набор блоков из официального SVD, генерация **chiptool** с проверяемыми исправлениями. Проверена только часть регистров; границы аудита описаны отдельно.
-- `bl706-hal`: RAM startup, nominal RC32M, GPIO, UART0 TX, CLIC, Embassy executor и time driver, IRQ-driven async I²C для регистровых устройств.
-- `examples/pinecil-v2`: heartbeat, чтение FUSB302, GPIO IRQ, проверка задержки executor, FPU и отдельная ограниченная диагностика атомиков.
+- `bl706-hal`: RAM startup, nominal RC32M, GPIO, UART0 TX, CLIC, Embassy executor и time driver, IRQ-driven async I²C/ADC, PWM и TIMER0/1.
+- `examples/pinecil-v2`: heartbeat, чтение FUSB302, GPIO IRQ, ADC/PWM/TIMER и измерительный цикл без нагревателя, проверка задержки executor, FPU и ограниченная диагностика атомиков.
 
 ## Сборка
 
@@ -25,7 +25,7 @@ Nix предоставляет компилятор, `rust-src`, chiptool, uv, L
 
 ```sh
 nix build .#firmware
-# result/bin/{heartbeat,fusb302,i2c_latency,gpio_irq}.elf
+# result/bin/{heartbeat,fusb302,i2c_latency,gpio_irq,analog,sampling}.elf
 nix flake check
 ```
 
@@ -41,7 +41,7 @@ IMFC является встроенным tier-3 target Rust. Alias `firmware-f
 через `-Zbuild-std=core`; custom JSON не нужен. **Обе конфигурации исключают `A`.**
 Сборка HAL для A-target или IMFC без `fpu` намеренно отклоняется.
 
-ELF находятся в `target/<target>/release/{heartbeat,fusb302,i2c_latency,gpio_irq,fpu}`.
+ELF находятся в `target/<target>/release/{heartbeat,fusb302,i2c_latency,gpio_irq,analog,sampling,fpu}`.
 Все они предназначены для загрузки **в RAM через JTAG/GDB**. Они не содержат flash/boot header;
 передавать их или результат обычного objcopy в `blisp flash` нельзя.
 
@@ -78,6 +78,9 @@ uv run --no-project tools/check_svd.py
 - RC32M имеет номинальную, а не измеренную частоту. PLL 144 MHz, XIP, загрузка из flash, RF, USB и DMA не реализованы.
 - UART0: TX на GPIO22, 115200 8N1 в примерах. RX GPIO23 не реализован.
 - GPIO: входы/выходы, IRQ-driven `embedded_hal_async::digital::Wait` (low/high/rising/falling/any-edge), отмена ожидания. Подробности: [GPIO](docs/gpio.md). FUSB302 INT_N на GPIO16; debounce и deep-sleep wakeup не реализованы.
+- ADC: single-ended finite scans 1..12 позиций на GPIO18/19/20 и GND, raw/right-aligned results, явная gain calibration из готового eFuse shadow. Differential/continuous/DMA пока нет.
+- PWM: 5 каналов, BCLK, normal polarity, `SetDutyCycle`, one-shot period IRQ; TIMER0/1: raw compare/preload, async wait или статический ISR driver. `mtime` остаётся отдельным. Подробности и допущения: [ADC/PWM/TIMER](docs/analog.md).
+- `analog` и `sampling` используют PWM без маршрутизации на pad; GPIO21 удерживается low. Рабочий регулятор нагрева и его защита не реализованы.
 - I²C: один пакет 1..256 байт; `write_read` с 1..4 байтами sub-address использует hardware repeated START. Другие формы `transaction` и пустые пакеты возвращают `Unsupported` до начала обмена. Автоматического bit-bang bus recovery нет.
 - FIFO обслуживается из ISR; задача только ждёт результат. Используется внутренний 256-байтный packet buffer, чтобы ISR не хранил указатели на память вызывающего кода. Подробности и отмена: [I²C](docs/i2c.md).
 - Read-only probe FUSB302 не реализует USB-PD policy engine и не запрашивает повышенное напряжение.

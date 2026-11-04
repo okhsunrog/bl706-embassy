@@ -140,6 +140,11 @@ pub enum Pull {
 }
 
 impl<const N: u8> Pin<N> {
+    pub(crate) fn configure_output_low(&self) {
+        set_output(N, false);
+        self.configure(11, Pull::None, false);
+        set_oe(N, true);
+    }
     pub(crate) const unsafe fn new() -> Self {
         Self { _private: () }
     }
@@ -158,7 +163,7 @@ impl<const N: u8> Pin<N> {
         assert!(N < 32);
         let value = (u32::from(function) << 8)
             | u32::from(input)
-            | (1 << 1)
+            | (u32::from(function != 10) << 1)
             | match pull {
                 Pull::None => 0,
                 Pull::Up => 1 << 4,

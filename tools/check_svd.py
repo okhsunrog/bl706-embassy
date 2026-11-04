@@ -65,3 +65,22 @@ for name, offset, access in [
     assert int(register.findtext("addressOffset"), 0) == offset
     assert register.findtext("access", "read-write") == access
 print("SVD source comparison and reviewed base/IRQ/gate assertions OK")
+
+for p, addr in [("gpip",0x40002000),("timer",0x4000a500),("pwm",0x4000a400)]:
+    assert int(ps[p].findtext("baseAddress"),0) == addr
+for p,name,number in [("gpip","ADC",25),("pwm","PWM",49),("timer","TIMER0",52),("timer","TIMER1",53)]:
+    assert int(ps[p].findtext(f"./interrupt[name='{name}']/value")) == number
+for p,name,offset,access in [
+    ("gpip","gpadc_dma_rdata",4,"read-only"),
+    ("aon","gpadc_reg_cmd",0x90c,"read-write"),
+    ("aon","gpadc_reg_config1",0x910,"read-write"),
+    ("aon","gpadc_reg_config2",0x914,"read-write"),
+    ("timer","TMSR2",0x38,"read-only"), ("timer","TMSR3",0x3c,"read-only"),
+    ("timer","TICR2",0x78,"write-only"), ("timer","TICR3",0x7c,"write-only"),
+    ("timer","TCVWR2",0xa8,"read-write"), ("timer","TCVWR3",0xac,"read-write"),
+    ("timer","TCDR",0xbc,"read-write"),
+]:
+    register = ps[p].find(f"./registers/register[name='{name}']")
+    assert int(register.findtext("addressOffset"),0) == offset
+    assert register.findtext("access","read-write") == access
+print("ADC/PWM/TIMER reviewed base/access/IRQ assertions OK")

@@ -63,6 +63,12 @@ for p, names, access in [
     ("glb", ["GPIO_CFGCTL30", "GPIO_INT_STAT1", "GPIO_INT2_STAT1"], "read-only"),
     # GPIO clear bits are RW levels pulsed 1 -> 0 by the SDK, not W1C.
     ("glb", ["GPIO_INT_CLR1", "GPIO_INT2_CLR1"], "read-write"),
+    ("gpip", ["gpadc_dma_rdata"], "read-only"),
+    ("aon", ["gpadc_reg_status", "gpadc_reg_result", "gpadc_reg_raw_result"], "read-only"),
+    ("timer", ["TCR2", "TCR3", "TMSR2", "TMSR3", "TCVSYN2", "TCVSYN3"], "read-only"),
+    ("timer", ["TICR2", "TICR3"], "write-only"),
+    # RM labels capture as RO, but SDK requests capture by writing 1 and reads three times.
+    ("timer", ["TCVWR2", "TCVWR3"], "read-write"),
     ("i2c", ["i2c_fifo_rdata"], "read-only"),
     ("i2c", ["i2c_fifo_wdata"], "write-only"),
     ("uart", ["uart_fifo_rdata", "uart_status"], "read-only"),
@@ -79,7 +85,8 @@ by_name["uart1"].remove(by_name["uart1"].find("registers"))
 by_name["uart1"].append(copy.deepcopy(by_name["uart"].find("registers")))
 
 # SDK IRQn = peripheral source + 16. Core-local MTIME is handled by HAL.
-for p, name, number in [("uart", "UART0", 45), ("uart1", "UART1", 46), ("i2c", "I2C", 48), ("glb", "GPIO", 60)]:
+for p, name, number in [("uart", "UART0", 45), ("uart1", "UART1", 46), ("i2c", "I2C", 48), ("glb", "GPIO", 60),
+                         ("gpip", "ADC", 25), ("pwm", "PWM", 49), ("timer", "TIMER0", 52), ("timer", "TIMER1", 53)]:
     irq = ET.SubElement(by_name[p], "interrupt")
     ET.SubElement(irq, "name").text = name
     ET.SubElement(irq, "value").text = str(number)

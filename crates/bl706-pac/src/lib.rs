@@ -7,12 +7,20 @@
 #![no_std]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Interrupt {
+    #[doc = "25 - ADC"]
+    ADC = 25,
     #[doc = "45 - UART0"]
     UART0 = 45,
     #[doc = "46 - UART1"]
     UART1 = 46,
     #[doc = "48 - I2C"]
     I2C = 48,
+    #[doc = "49 - PWM"]
+    PWM = 49,
+    #[doc = "52 - TIMER0"]
+    TIMER0 = 52,
+    #[doc = "53 - TIMER1"]
+    TIMER1 = 53,
     #[doc = "60 - GPIO"]
     GPIO = 60,
 }
@@ -231,7 +239,7 @@ pub mod aon {
         #[inline(always)]
         pub const fn gpadc_reg_status(
             self,
-        ) -> crate::common::Reg<regs::gpadc_reg_status, crate::common::RW> {
+        ) -> crate::common::Reg<regs::gpadc_reg_status, crate::common::R> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x0928usize) as _) }
         }
         #[doc = "gpadc_reg_isr."]
@@ -245,14 +253,14 @@ pub mod aon {
         #[inline(always)]
         pub const fn gpadc_reg_result(
             self,
-        ) -> crate::common::Reg<regs::gpadc_reg_result, crate::common::RW> {
+        ) -> crate::common::Reg<regs::gpadc_reg_result, crate::common::R> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x0930usize) as _) }
         }
         #[doc = "gpadc_reg_raw_result."]
         #[inline(always)]
         pub const fn gpadc_reg_raw_result(
             self,
-        ) -> crate::common::Reg<regs::gpadc_reg_raw_result, crate::common::RW> {
+        ) -> crate::common::Reg<regs::gpadc_reg_raw_result, crate::common::R> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x0934usize) as _) }
         }
         #[doc = "gpadc_reg_define."]
@@ -24616,7 +24624,7 @@ pub mod gpip {
         #[inline(always)]
         pub const fn gpadc_dma_rdata(
             self,
-        ) -> crate::common::Reg<regs::gpadc_dma_rdata, crate::common::RW> {
+        ) -> crate::common::Reg<regs::gpadc_dma_rdata, crate::common::R> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x04usize) as _) }
         }
         #[doc = "gpdac_config."]
@@ -49371,22 +49379,22 @@ pub mod timer {
         }
         #[doc = "TCR2."]
         #[inline(always)]
-        pub const fn TCR2(self) -> crate::common::Reg<regs::TCR2, crate::common::RW> {
+        pub const fn TCR2(self) -> crate::common::Reg<regs::TCR2, crate::common::R> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x2cusize) as _) }
         }
         #[doc = "TCR3."]
         #[inline(always)]
-        pub const fn TCR3(self) -> crate::common::Reg<regs::TCR3, crate::common::RW> {
+        pub const fn TCR3(self) -> crate::common::Reg<regs::TCR3, crate::common::R> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x30usize) as _) }
         }
         #[doc = "TMSR2."]
         #[inline(always)]
-        pub const fn TMSR2(self) -> crate::common::Reg<regs::TMSR2, crate::common::RW> {
+        pub const fn TMSR2(self) -> crate::common::Reg<regs::TMSR2, crate::common::R> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x38usize) as _) }
         }
         #[doc = "TMSR3."]
         #[inline(always)]
-        pub const fn TMSR3(self) -> crate::common::Reg<regs::TMSR3, crate::common::RW> {
+        pub const fn TMSR3(self) -> crate::common::Reg<regs::TMSR3, crate::common::R> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x3cusize) as _) }
         }
         #[doc = "TIER2."]
@@ -49441,12 +49449,12 @@ pub mod timer {
         }
         #[doc = "TICR2."]
         #[inline(always)]
-        pub const fn TICR2(self) -> crate::common::Reg<regs::TICR2, crate::common::RW> {
+        pub const fn TICR2(self) -> crate::common::Reg<regs::TICR2, crate::common::W> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x78usize) as _) }
         }
         #[doc = "TICR3."]
         #[inline(always)]
-        pub const fn TICR3(self) -> crate::common::Reg<regs::TICR3, crate::common::RW> {
+        pub const fn TICR3(self) -> crate::common::Reg<regs::TICR3, crate::common::W> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x7cusize) as _) }
         }
         #[doc = "WICR."]
@@ -49501,12 +49509,12 @@ pub mod timer {
         }
         #[doc = "TCVSYN2."]
         #[inline(always)]
-        pub const fn TCVSYN2(self) -> crate::common::Reg<regs::TCVSYN2, crate::common::RW> {
+        pub const fn TCVSYN2(self) -> crate::common::Reg<regs::TCVSYN2, crate::common::R> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0xb4usize) as _) }
         }
         #[doc = "TCVSYN3."]
         #[inline(always)]
-        pub const fn TCVSYN3(self) -> crate::common::Reg<regs::TCVSYN3, crate::common::RW> {
+        pub const fn TCVSYN3(self) -> crate::common::Reg<regs::TCVSYN3, crate::common::R> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0xb8usize) as _) }
         }
         #[doc = "TCDR."]

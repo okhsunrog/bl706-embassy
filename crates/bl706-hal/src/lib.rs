@@ -7,12 +7,16 @@ pub use embassy_executor::Executor;
 pub use embedded_hal_async;
 /// Software fallback atomics, unified with static_cell by Cargo features.
 pub use portable_atomic;
+pub mod adc;
 pub mod clock;
 pub mod gpio;
 pub mod i2c;
 pub mod interrupt;
+mod peripheral_logic;
+pub mod pwm;
 mod runtime;
 pub mod time;
+pub mod timer;
 pub mod uart;
 
 use core::cell::Cell;
@@ -23,6 +27,14 @@ pub struct Peripherals {
     pub pins: gpio::Pins,
     pub uart0: uart::Uart0Token,
     pub i2c: i2c::I2cToken,
+    pub adc: adc::AdcToken,
+    pub timer0: timer::TimerToken<0>,
+    pub timer1: timer::TimerToken<1>,
+    pub pwm0: pwm::PwmToken<0>,
+    pub pwm1: pwm::PwmToken<1>,
+    pub pwm2: pwm::PwmToken<2>,
+    pub pwm3: pwm::PwmToken<3>,
+    pub pwm4: pwm::PwmToken<4>,
     pub clocks: clock::Clocks,
 }
 
@@ -41,10 +53,24 @@ pub fn init() -> Peripherals {
                 pins: gpio::Pins::new(),
                 uart0: uart::Uart0Token::new(),
                 i2c: i2c::I2cToken::new(),
+                adc: adc::AdcToken::new(),
+                timer0: timer::TimerToken::new(),
+                timer1: timer::TimerToken::new(),
+                pwm0: pwm::PwmToken::new(),
+                pwm1: pwm::PwmToken::new(),
+                pwm2: pwm::PwmToken::new(),
+                pwm3: pwm::PwmToken::new(),
+                pwm4: pwm::PwmToken::new(),
                 clocks,
             }
         }
     })
+}
+
+pub(crate) fn io_fence() {
+    unsafe {
+        core::arch::asm!("fence iorw, iorw");
+    }
 }
 
 /// Enable machine interrupts after initialization. All installed handlers must

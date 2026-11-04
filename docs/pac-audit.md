@@ -34,6 +34,7 @@ GPIO arrays в YAML **закомментированы**, поэтому не я
 | UART0/1/I²C/GPIO IRQ 45/46/48/60 | SDK IRQ_NUM_BASE=16; RM источники 29/30/32/44 | XML, HAL CLIC map |
 | cgen_cfg1 gates UART0=16, UART1=17, SPI=18, I²C=19, PWM=20, TIMER=21, IR=22 | SDK `GLB_AHB_Get_Clock` / `UnGate` | именованные setters, XML asserts |
 | GPIO input и оба IRQ status RO, оба GPIO clear RW; I²C FIFO data RO/WO; UART status/RX RO, TX/clear WO | RM register access, SDK headers | типы `Reg<...,R/RW/W>` |
+| ADC FIFO/results RO; TIMER count/status RO, interrupt clear WO; IRQ ADC/PWM/TIMER0/1=25/49/52/53 | RM ADC/TIMER tables, SDK IRQ +16 | XML access/base/IRQ assertions, generated PAC |
 
 Остальные gates сохранены сгруппированными. У andelf KYS обозначен bit25, тогда как
 современный SDK использует bit27; bits24–26 связаны также с QDEC/I²S. Без нужды для
@@ -55,6 +56,14 @@ RF из andelf не импортирован: это существенное д
   по RM это RW-регистр, SDK делает pulse 1 → 0. Второй STAT теперь RO.
   Ожидания one-shot, ISR mask-before-clear, cancel/rearm. См. [gpio.md](gpio.md).
 - UART0: divider, free-run, 8N1, FIFO count и byte data, signal mux.
+- ADC GPIP/AON: clock XCLK/divider, PGA/chop/resolution/scan, FIFO tags и W1C;
+  read-only путь gain trim из EF_DATA_0 shadow +0x78, parity/sign conversion.
+  GPIP gate bit2 и EF_CTRL bit7 сверены с SDK UnGate. Программирование eFuse не используется.
+- PWM: пять layouts с шагом0x20, BCLK/divider/period/threshold/SW force/STOP,
+  общий interrupt clear pulse и channel-local enable. TIMER: два канала с тремя
+  compare, shared source/divider/enable/mode, preload и IRQ clear.
+  TCVWR оставлен RW: RM говорит RO, SDK делает write1 + три read для capture.
+  Compare-minus-two из SDK init не применяется автоматически. Подробности [analog.md](analog.md).
 - I²C: packet length **N−1**, sub-address **N−1** и LSB-first, repeated START,
   FIFO **два 32-битных слова**, END/NAK/ARB/FIFO error и mask/enable/W1C в одном регистре.
   FIFO обслуживается из ISR через внутренний packet buffer; mixed status/control
@@ -64,7 +73,7 @@ RF из andelf не импортирован: это существенное д
 
 ## Что не утверждается
 
-Это не полный аудит всего SoC PAC. ADC, DMA channels, crypto/eFuse, USB, RF,
+Это не полный аудит всего SoC PAC. DMA channels, crypto, запись eFuse, USB, RF,
 camera/MJPEG и flash controller в HAL не используются; их поля и reset values
 полностью не сверялись. Наличие аксессора не подтверждает применимость блока к
 конкретному package/варианту BL706. В частности, исходный SVD содержит MJPEG и ef_data_1,

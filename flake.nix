@@ -42,7 +42,7 @@
             '';
             installPhase = ''
               mkdir -p $out/bin
-              for example in heartbeat fusb302 i2c_latency gpio_irq; do
+              for example in heartbeat fusb302 i2c_latency gpio_irq analog sampling; do
                 cp target/riscv32imc-unknown-none-elf/release/$example $out/bin/$example.elf
               done
             '';
