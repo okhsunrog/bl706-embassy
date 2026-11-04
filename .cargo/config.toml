@@ -1,6 +1,10 @@
 [alias]
-firmware = "build --release -p pinecil-v2-bringup --bins --target riscv32imc-unknown-none-elf"
-firmware-fpu = "build --release -p pinecil-v2-bringup --bins --target riscv32imfc-unknown-none-elf --features fpu -Zbuild-std=core"
+firmware = "build --release -p pinecil-v2-bringup --bins --no-default-features --target riscv32imc-unknown-none-elf"
+firmware-fpu = "build --release -p pinecil-v2-bringup --bins --no-default-features --target riscv32imfc-unknown-none-elf --features fpu -Zbuild-std=core"
+
+[build]
+target = "riscv32imc-unknown-none-elf"
 
 [target.'cfg(target_arch = "riscv32")']
 rustflags = ["-C", "link-arg=-Tbl706.x"]
+runner = "uv run --no-project tools/run.py"

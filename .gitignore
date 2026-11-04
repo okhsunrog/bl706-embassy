@@ -3,3 +3,4 @@
 /result
 /svd/patched.svd
 *.log
+__pycache__/

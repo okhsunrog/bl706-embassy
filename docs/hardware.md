@@ -2,6 +2,9 @@
 
 ## First-run contract
 
+This section describes `cargo firmware` RAM-only builds. The default flash build
+has a separate [boot and flashing contract](flashing.md).
+
 - BL706, one hart, machine mode, cold reset/ROM ISP; do not attach over running IronOS.
 - Debugger loads all ELF PT_LOAD segments at VMA=LMA. Startup does not copy `.data`
   from flash because the debugger loads it; startup clears `.bss`.

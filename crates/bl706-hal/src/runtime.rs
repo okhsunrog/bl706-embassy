@@ -26,3 +26,6 @@ core::arch::global_asm!(
 #[cfg(feature = "fpu")]
 core::arch::global_asm!(include_str!("runtime-fpu.S"));
 core::arch::global_asm!(include_str!("runtime.S"));
+
+#[cfg(feature = "flash")]
+core::arch::global_asm!(include_str!("flash-boot.S"));

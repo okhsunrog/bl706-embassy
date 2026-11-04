@@ -31,24 +31,53 @@ def audit(path, fpu=False, probes=False):
         for pos in range(sh[4], sh[4]+sh[5], sh[9]):
             n, value, *_ = struct.unpack_from("<IIIBBH", data, pos)
             syms[name(table, n)] = value
-    assert entry == syms["_start"] == 0x22010000
+    flash = ".bootheader" in sections
+    tcm_start = 0x22014000 if flash else 0x22010000
+    assert syms["_start"] == tcm_start
+    if flash:
+        from flash_image import prepare
+        prepared, image, boot_header = prepare(data)
+        assert len(boot_header) == 176
+        assert entry == syms["_flash_start"] == 0x23000000
+        # A single linear copy must reproduce each initialized RAM section.
+        for section_name, source_symbol, base_symbol in [
+            (".init", "__tcm_load_xip", "__tcm_start"),
+            (".vectors", "__tcm_load_xip", "__tcm_start"),
+            (".text", "__ocram_load_xip", "__ocram_start"),
+            (".rodata", "__ocram_load_xip", "__ocram_start"),
+            (".data", "__ocram_load_xip", "__ocram_start"),
+        ]:
+            sh = sections[section_name]
+            offset = syms[source_symbol] - 0x23000000 + sh[3] - syms[base_symbol]
+            assert image[offset:offset+sh[5]] == data[sh[4]:sh[4]+sh[5]], (path, "copy mismatch", section_name)
+    else:
+        assert entry == syms["_start"]
     assert syms["bl706_vectors"] % 64 == 0
     assert syms["bl706_fatal_trap"] % 64 == 0
     assert syms["__bss_end"] <= syms["__stack_bottom"]
     assert syms["__stack_top"] - syms["__stack_bottom"] == 8192
     assert syms["__stack_top"] <= 0x2202c000
     for symbol in ("bl706_clock_to_rc32m", "bl706_clock_apply"):
-        assert 0x22010000 <= syms[symbol] < 0x22014000, (path, "clock transition outside ITCM", symbol)
+        assert tcm_start <= syms[symbol] < tcm_start + 0x4000, (path, "clock transition outside ITCM", symbol)
     if path.name == "flash_probe":
         for symbol in ("bl706_flash_blocking_read", "bl706_flash_blocking_write", "bl706_flash_blocking_erase", "bl706_flash_async_surface"):
             assert 0x22020000 <= syms[symbol] < 0x2202c000, (path, "compile-only flash surface missing/outside RAM", symbol)
     # Every load segment has VMA=LMA and stays in explicitly reserved RAM.
     for i in range(phnum):
-        kind, _, va, pa, _, memsz, _, _ = struct.unpack_from("<8I", data, phoff+i*phsize)
+        kind, _, va, pa, filesz, memsz, _, _ = struct.unpack_from("<8I", data, phoff+i*phsize)
         if kind != 1 or not memsz:
             continue
-        assert va == pa
-        assert any(lo <= va and va+memsz <= hi for lo, hi in [(0x22010000,0x22014000),(0x22020000,0x2202c000)]), (path, hex(va), memsz)
+        if flash and filesz:
+            assert 0x23000000 <= pa < pa+filesz <= 0x23100000
+            if va == 0x21000000:
+                assert filesz == memsz == 176
+                continue
+            if va == 0x23000000:
+                assert memsz <= 4096
+                continue
+        else:
+            assert va == pa
+        assert any(lo <= va and va+memsz <= hi for lo, hi in [(tcm_start,tcm_start+0x4000),(0x22020000,0x2202c000)]), (path, hex(va), memsz)
     sh = sections[".vectors"]
     vectors = struct.unpack_from("<80I", data, sh[4])
     assert sh[5] == 320
@@ -89,9 +118,12 @@ def audit(path, fpu=False, probes=False):
         assert saved == restored == set(range(32)), (path, "FP context save/restore incomplete", saved, restored)
     else:
         assert float_ops == 0, (path, "unexpected FP opcode", float_ops)
-    print(f"{path.relative_to(ROOT)}: RAM/vector/ABI checks OK; A={len(atomic)}, FP={float_ops}, stack=8192")
+    print(f"{path.relative_to(ROOT)}: {'flash+RAM' if flash else 'RAM'}/vector/ABI checks OK; A={len(atomic)}, FP={float_ops}, stack=8192")
 
 if __name__ == "__main__":
+    if sys.argv[1:] == ["--flash"]:
+        audit(ROOT/"target/riscv32imc-unknown-none-elf/release/heartbeat")
+        sys.exit(0)
     for target, fpu, names in [
         ("riscv32imc-unknown-none-elf", False, ["heartbeat", "fusb302", "i2c_latency", "gpio_irq", "analog", "sampling", "system", "flash_probe"]),
         ("riscv32imfc-unknown-none-elf", True, ["heartbeat", "fusb302", "i2c_latency", "gpio_irq", "analog", "sampling", "system", "flash_probe", "fpu"]),

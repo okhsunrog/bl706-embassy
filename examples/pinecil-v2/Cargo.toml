@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 publish = false
+default-run = "heartbeat"
 
 [dependencies]
 bl706-hal = { version = "0.1.0", path = "../../crates/bl706-hal" }
@@ -16,7 +17,8 @@ rtt-target = "0.6.2"
 static_cell = "2.1.1"
 
 [features]
-default = []
+default = ["flash"]
+flash = ["bl706-hal/flash"]
 fpu = ["bl706-hal/fpu"]
 atomic-probe = []
 

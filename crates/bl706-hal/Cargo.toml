@@ -22,3 +22,4 @@ portable-atomic = { version = "1.15.0", features = ["critical-section"] }
 [features]
 default = []
 fpu = []
+flash = []

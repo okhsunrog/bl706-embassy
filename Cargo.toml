@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["crates/bl706-pac", "crates/bl706-hal", "examples/pinecil-v2"]
-default-members = ["crates/bl706-pac", "crates/bl706-hal"]
+default-members = ["examples/pinecil-v2"]
 
 [profile.release]
 codegen-units = 1

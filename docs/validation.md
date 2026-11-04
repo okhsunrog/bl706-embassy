@@ -98,6 +98,10 @@ Current full logs are outside the repository:
 
 ## Practical limits
 
+The default flash/Cargo/RTT bring-up workflow was added on 2026-11-04; its hardware
+results and exact scope are recorded in [flashing.md](flashing.md). The probe-rs
+flash algorithm is separate from the HAL's application-side NOR driver.
+
 The I²C model checks its ISR engine and completion stop/mask, not BL706/CLIC, W1C
 side effects, END/NAK timing, IRQ latency or physical STOP. `i2c_latency` is compiled
 but has never demonstrated nine-byte progress during20 ms executor blockage on a
@@ -119,7 +123,9 @@ behavior have not been measured. See [system.md](system.md).
 NOR tests run the production engine against memory-backed transport, not SF_CTRL,
 SRAM arbitration, SPI timing, real WIP, power loss/endurance or XIP/cache behavior.
 The flash example only reads at runtime; write/erase wrappers are linked but never
-called. The actual chip ID and unsafe RAM/SPI contract are unconfirmed.
+called. The attached flash is now identified as Macronix `C2 20 14` by the debug
+algorithm, but the HAL driver's unsafe RAM/SPI contract remains unconfirmed on
+hardware; debug-algorithm erase/program tests do not validate the HAL driver.
 See [flash.md](flash.md).
 
 FP spills/reloads do not replace a runtime register-sentinel test. Nix sandbox

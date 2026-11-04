@@ -2,8 +2,8 @@
 
 Initial Bouffalo Lab BL702/704/706 support, targeting **Pinecil V2 / BL706**.
 Hardware bring-up is in progress; startup, clocks and peripheral drivers still need
-board validation. This is a research foundation, not a replacement for IronOS or a complete
-soldering iron firmware.
+board validation. This is a research foundation; it does not yet implement a complete
+soldering iron controller.
 
 The workspace contains:
 
@@ -17,6 +17,16 @@ The workspace contains:
   All examples log over RTT channel 0 (4 KiB, nonblocking); no UART wiring is needed.
 
 ## Build
+
+The default example builds a bootable flash image and uses the patched probe-rs
+runner with RTT. See [flash workflow](docs/flashing.md) for the debugger and backup
+requirements. From the workspace root:
+
+```sh
+cargo run -r
+```
+
+The explicit `firmware` aliases below retain the original RAM-only debug builds.
 
 ```sh
 nix develop
@@ -47,14 +57,16 @@ IMFC is a built-in Rust tier-3 target. The `firmware-fpu` alias rebuilds `core` 
 `-Zbuild-std=core`; no custom JSON target is needed. **Both configurations exclude A.**
 The HAL rejects A targets and IMFC builds without the `fpu` feature.
 
-ELF files are under `target/<target>/release/`. They are intended for **RAM loading
-through JTAG/GDB**. They have no flash/boot header; neither these files nor a plain
-objcopy output can be passed to `blisp flash` as a bootable image.
+ELF files are under `target/<target>/release/`. The `firmware` aliases produce
+**RAM ELFs for JTAG/GDB**, without a boot header. The default flash build has
+physical flash load addresses; the Cargo runner adds the boot header checksums
+and retains RAM symbols in `heartbeat.flash.elf`. A plain objcopy output is not
+a substitute for this preparation.
 
 ```sh
 # Isolated binary containing three intentional A instructions:
 cargo build --locked --release -p pinecil-v2-bringup --bin atomics \
-  --features atomic-probe --target riscv32imc-unknown-none-elf
+  --no-default-features --features atomic-probe --target riscv32imc-unknown-none-elf
 
 # PAC, both configurations, clippy, host tests, ELF layout and instruction encodings:
 bash tools/check.sh
@@ -81,7 +93,8 @@ HAL invariants; do not mix direct PAC writes with an active HAL driver.
 
 - One hart, M-mode, one spinning thread executor. No nested interrupts or sleep support.
 - Init-time RC32M, XTAL32M and DLL96/144M profiles; frequencies are nominal, not measured.
-  No live clock switching, boot image, XIP startup, RF, USB or DMA support.
+  No live clock switching, application XIP execution, RF, USB or DMA support.
+  Flash boot uses a small XIP stub followed by execution entirely from RAM.
 - Watchdog reset mode and explicit system reset are implemented; see [system](docs/system.md).
 - NOR flash implements blocking and async `embedded-storage` traits with a reserved
   region and explicit device-ID check. It requires a RAM-only execution and board/SPI
