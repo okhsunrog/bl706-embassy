@@ -16,7 +16,7 @@ static EXECUTOR: StaticCell<bl706_hal::Executor> = StaticCell::new();
 #[embassy_executor::task]
 async fn check(mut b: Board) {
     use bl706_hal::embedded_hal_async::i2c::I2c;
-    banner(&mut b.uart, "I2C IRQ progress with executor stalled");
+    banner(&mut b.log, "I2C IRQ progress with executor stalled");
     loop {
         // Read DEVICE_ID..CONTROL3 (0x01..0x09): all readable registers,
         // no read-to-clear INTERRUPT/FIFO access or PD configuration writes.
@@ -44,7 +44,7 @@ async fn check(mut b: Board) {
             .await
         };
         let _ = writeln!(
-            b.uart,
+            b.log,
             "stalled={stalled} result={result:?} registers={registers:02x?}\r"
         );
         Timer::after_millis(1000).await;

@@ -6,10 +6,10 @@ use bl706_hal::{
     gpio::Output,
     pwm::{Pwm, Unrouted},
     timer::{self, Compare, Events, Timer},
-    uart::Uart0,
 };
 use core::fmt::Write;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
+use pinecil_v2_bringup::Logger;
 use pinecil_v2_bringup::banner;
 use static_cell::StaticCell;
 type Inputs = (AnalogPin<18>, AnalogPin<19>, AnalogPin<20>);
@@ -97,33 +97,33 @@ impl timer::Handler<0> for Sampler {
     }
 }
 #[embassy_executor::task]
-async fn report(mut uart: Uart0, _heater: Output<21>) {
+async fn report(mut log: Logger, _heater: Output<21>) {
     banner(
-        &mut uart,
+        &mut log,
         "TIMER0 sampling dry run: PWM1 unrouted, heater GPIO-low",
     );
     loop {
         match RESULT.wait().await {
             Ok(frame) => {
                 let _ = writeln!(
-                    uart,
+                    log,
                     "sequence={} samples={:?}\r",
                     frame.sequence, frame.samples
                 );
             }
             Err(error) => {
-                let _ = writeln!(uart, "sampling stopped: {error:?}\r");
+                let _ = writeln!(log, "sampling stopped: {error:?}\r");
             }
         }
     }
 }
 #[unsafe(no_mangle)]
 extern "C" fn __bl706_main() -> ! {
+    let mut log = Logger::init();
     let p = bl706_hal::init();
     let heater = p.pins.p21.into_output(false);
-    let mut uart = Uart0::new(p.uart0, p.pins.p22, p.clocks, 115_200).unwrap();
     let trim = GainCalibration::from_efuse_shadow();
-    let _ = writeln!(uart, "gain_trim={trim:?}\r");
+    let _ = writeln!(log, "gain_trim={trim:?}\r");
     let mut adc = Adc::new(
         p.adc,
         (
@@ -176,6 +176,6 @@ extern "C" fn __bl706_main() -> ! {
         .register(Events::ALL);
     bl706_hal::enable_interrupts();
     EXECUTOR.init(bl706_hal::Executor::new()).run(|s| {
-        s.spawn(report(uart, heater).unwrap());
+        s.spawn(report(log, heater).unwrap());
     })
 }

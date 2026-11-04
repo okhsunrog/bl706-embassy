@@ -8,11 +8,11 @@ static EXECUTOR: StaticCell<bl706_hal::Executor> = StaticCell::new();
 
 #[embassy_executor::task]
 async fn heartbeat(mut b: Board) {
-    banner(&mut b.uart, "heartbeat");
+    banner(&mut b.log, "heartbeat");
     let mut count = 0u32;
     loop {
         let _ = writeln!(
-            b.uart,
+            b.log,
             "tick={count} us={} keyA={} keyB={} PD_IRQ={}\r",
             Instant::now().as_micros(),
             b.key_a.is_high(),

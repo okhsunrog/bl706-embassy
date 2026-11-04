@@ -19,7 +19,7 @@ unsafe extern "C" {
 extern "C" fn __bl706_main() -> ! {
     let mut b = board();
     banner(
-        &mut b.uart,
+        &mut b.log,
         "bounded atomic probes; NO general atomic support assumed",
     );
     // No interrupts or DMA race the test word. Each instruction is attempted
@@ -35,29 +35,29 @@ extern "C" fn __bl706_main() -> ! {
     }
     let p = addr_of_mut!(PROBE_WORD);
     let _ = writeln!(
-        b.uart,
+        b.log,
         "misa={misa:08x} marchid={marchid:08x} mimpid={mimpid:08x} word={:08x}\r",
         p as usize
     );
-    let _ = b.uart.write(b"LR/SC: attempting once\r\n");
+    let _ = b.log.write_str("LR/SC: attempting once\r\n");
     let sc = unsafe { bl706_probe_lrsc(p) };
     let record = unsafe { read_volatile(&raw const BL706_TRAP) };
     let value = unsafe { read_volatile(p) };
     let _ = writeln!(
-        b.uart,
+        b.log,
         "LR/SC status={sc:08x} word={value:08x} trap={record:08x?}\r"
     );
-    let _ = b.uart.write(b"AMOADD: attempting once\r\n");
+    let _ = b.log.write_str("AMOADD: attempting once\r\n");
     let old = unsafe { bl706_probe_amo(p) };
     let record = unsafe { read_volatile(&raw const BL706_TRAP) };
     let value = unsafe { read_volatile(p) };
     let _ = writeln!(
-        b.uart,
+        b.log,
         "AMO old={old:08x} word={value:08x} trap={record:08x?}\r"
     );
     let _ = b
-        .uart
-        .write(b"Probe complete. Results apply only to this word/alias/revision.\r\n");
+        .log
+        .write_str("Probe complete. Results apply only to this word/alias/revision.\r\n");
     loop {
         core::hint::spin_loop();
     }

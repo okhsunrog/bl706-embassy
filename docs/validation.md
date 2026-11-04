@@ -1,6 +1,7 @@
 # Local validation
 
-2026-11-04, x86_64-linux/NixOS. **No board was connected; there are no hardware results.**
+2026-11-04, x86_64-linux/NixOS. These are the initial offline results;
+peripheral validation on hardware remains pending.
 
 ## Checks
 
@@ -23,6 +24,13 @@
 | ELF32 layout | RAM bounds, VMA=LMA, entry,8 KiB stack,80-entry vector table/handlers7/25/48/49/52/53/60,64-byte mtvec/mtvt alignment, ABI |
 | Clock/flash placement | Both clock-latch functions in ITCM; four compile-only flash wrappers retained in RAM |
 | Instruction encodings | No A opcodes in17 normal ELF files; exactly3 labelled probes in atomics; no FP in IMC; all32 FPR spills/reloads in IMFC |
+
+The complete `tools/check.sh` suite also passes after replacing example UART
+output with nonblocking RTT (4 KiB up-channel 0). The HAL UART driver remains
+available, but the examples no longer initialize GPIO22 for logging. Host checks
+and ELF audits do not establish that RTT or peripheral initialization works on
+the MCU. First-board logs are kept under
+`/home/okhsunrog/tmp_zfs/codex_tmp/bl706/first-hardware/`.
 
 The 39 host tests exercise production logic but not the physical MCU. PAC generation
 from the git checkout and the Nix archive build yields the same SHA-256:

@@ -6,10 +6,10 @@ use bl706_hal::{
     gpio::Output,
     pwm::{Config as PwmConfig, Pwm, Unrouted},
     timer::{ClockSource, Compare, Config as TimerConfig, Mode, Timer as HardwareTimer},
-    uart::Uart0,
 };
 use core::fmt::Write;
 use embassy_time::{Duration, Timer, with_timeout};
+use pinecil_v2_bringup::Logger;
 use pinecil_v2_bringup::banner;
 use static_cell::StaticCell;
 static EXECUTOR: StaticCell<bl706_hal::Executor> = StaticCell::new();
@@ -17,14 +17,14 @@ type Inputs = (AnalogPin<18>, AnalogPin<19>, AnalogPin<20>);
 
 #[embassy_executor::task]
 async fn check(
-    mut uart: Uart0,
+    mut log: Logger,
     _heater: Output<21>,
     mut adc: Adc<Inputs>,
     mut timer: HardwareTimer<1>,
     mut pwm: Pwm<0, Unrouted>,
 ) {
-    banner(&mut uart, "ADC scan / TIMER1 / unrouted PWM0 IRQ");
-    let _ = writeln!(uart, "calibration={:?}\r", adc.config().calibration);
+    banner(&mut log, "ADC scan / TIMER1 / unrouted PWM0 IRQ");
+    let _ = writeln!(log, "calibration={:?}\r", adc.config().calibration);
     timer.start();
     pwm.enable();
     loop {
@@ -49,7 +49,7 @@ async fn check(
             )
             .await;
         let _ = writeln!(
-            uart,
+            log,
             "timer={timer_result:?} counter={} pwm={pwm_result:?} hz={} adc={result:?} samples={samples:?}\r",
             timer.counter(),
             pwm.frequency_hz()
@@ -59,11 +59,11 @@ async fn check(
 }
 #[unsafe(no_mangle)]
 extern "C" fn __bl706_main() -> ! {
+    let mut log = Logger::init();
     let p = bl706_hal::init();
     let heater = p.pins.p21.into_output(false);
-    let mut uart = Uart0::new(p.uart0, p.pins.p22, p.clocks, 115_200).unwrap();
     let trim = GainCalibration::from_efuse_shadow();
-    let _ = writeln!(uart, "gain_trim={trim:?}\r");
+    let _ = writeln!(log, "gain_trim={trim:?}\r");
     let calibration = trim.ok();
     let adc = Adc::new(
         p.adc,
@@ -104,6 +104,6 @@ extern "C" fn __bl706_main() -> ! {
     .unwrap();
     bl706_hal::enable_interrupts();
     EXECUTOR.init(bl706_hal::Executor::new()).run(|s| {
-        s.spawn(check(uart, heater, adc, timer, pwm).unwrap());
+        s.spawn(check(log, heater, adc, timer, pwm).unwrap());
     })
 }

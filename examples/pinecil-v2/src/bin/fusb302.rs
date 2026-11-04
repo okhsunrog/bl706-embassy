@@ -8,7 +8,7 @@ static EXECUTOR: StaticCell<bl706_hal::Executor> = StaticCell::new();
 
 #[embassy_executor::task]
 async fn probe(mut b: Board) {
-    banner(&mut b.uart, "FUSB302 read-only probe");
+    banner(&mut b.log, "FUSB302 read-only probe");
     loop {
         // FUSB302MPX address 0x22 (7-bit, not the legacy shifted 0x44).
         // DEVICE_ID=0x01; avoid INTERRUPT (read-to-clear), RESET and PD TX.
@@ -16,7 +16,7 @@ async fn probe(mut b: Board) {
         let mut id = [0u8; 1];
         let result = b.i2c.write_read(0x22, &[0x01], &mut id).await;
         let _ = writeln!(
-            b.uart,
+            b.log,
             "device_id={:02x} result={result:?} IRQ={}\r",
             id[0],
             b.pd_irq.is_high()

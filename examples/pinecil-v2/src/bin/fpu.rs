@@ -8,7 +8,7 @@ static EXECUTOR: StaticCell<bl706_hal::Executor> = StaticCell::new();
 
 #[embassy_executor::task]
 async fn check(mut b: Board) {
-    banner(&mut b.uart, "FPU");
+    banner(&mut b.log, "FPU");
     loop {
         let x = core::hint::black_box(1.5f32);
         let y = core::hint::black_box(2.0f32);
@@ -20,7 +20,7 @@ async fn check(mut b: Board) {
             core::arch::asm!("frcsr {}", out(reg) fcsr);
         }
         let _ = writeln!(
-            b.uart,
+            b.log,
             "f32 bits={:08x} expected=40500000 FS={} fcsr={fcsr:08x}\r",
             result.to_bits(),
             (mstatus >> 13) & 3

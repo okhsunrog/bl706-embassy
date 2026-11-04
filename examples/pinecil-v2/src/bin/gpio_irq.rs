@@ -3,10 +3,10 @@
 use bl706_hal::{
     gpio::{Input, Output},
     portable_atomic::{AtomicU32, Ordering},
-    uart::Uart0,
 };
 use core::fmt::Write;
 use embassy_time::{Duration, Timer, with_timeout};
+use pinecil_v2_bringup::Logger;
 use pinecil_v2_bringup::{Board, banner, board};
 use static_cell::StaticCell;
 
@@ -51,14 +51,14 @@ async fn pd_irq(mut pin: Input<16>) {
     }
 }
 #[embassy_executor::task]
-async fn report(mut uart: Uart0, _heater_off: Output<21>) {
+async fn report(mut log: Logger, _heater_off: Output<21>) {
     banner(
-        &mut uart,
+        &mut log,
         "GPIO IRQ: keys A/B and FUSB302 INT_N (no debounce)",
     );
     loop {
         let _ = writeln!(
-            uart,
+            log,
             "A_edges={} A_timeouts={} B_presses={} PD_asserts={}\r",
             A_EDGES.load(Ordering::Relaxed),
             A_TIMEOUTS.load(Ordering::Relaxed),
@@ -71,7 +71,7 @@ async fn report(mut uart: Uart0, _heater_off: Output<21>) {
 #[unsafe(no_mangle)]
 extern "C" fn __bl706_main() -> ! {
     let Board {
-        uart,
+        log,
         heater_off,
         key_a: a,
         key_b: b,
@@ -82,6 +82,6 @@ extern "C" fn __bl706_main() -> ! {
         s.spawn(key_a(a).unwrap());
         s.spawn(key_b(b).unwrap());
         s.spawn(pd_irq(pd).unwrap());
-        s.spawn(report(uart, heater_off).unwrap());
+        s.spawn(report(log, heater_off).unwrap());
     })
 }

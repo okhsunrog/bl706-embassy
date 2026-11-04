@@ -4,7 +4,6 @@
 use bl706_hal::{
     flash::{Error, Flash, Probe},
     gpio::Output,
-    uart::Uart0,
 };
 use core::{
     fmt::Write,
@@ -13,6 +12,7 @@ use core::{
 };
 use embassy_time::Timer;
 use pinecil_v2_bringup as _;
+use pinecil_v2_bringup::Logger;
 use static_cell::StaticCell;
 static EXECUTOR: StaticCell<bl706_hal::Executor> = StaticCell::new();
 
@@ -41,7 +41,7 @@ fn bl706_flash_async_surface(flash: &mut Flash, cx: &mut Context<'_>) -> Poll<Re
     future.as_mut().poll(cx)
 }
 #[embassy_executor::task]
-async fn check(mut uart: Uart0, _heater: Output<21>, mut probe: Result<Probe, Error>) {
+async fn check(mut log: Logger, _heater: Output<21>, mut probe: Result<Probe, Error>) {
     core::hint::black_box(
         bl706_flash_blocking_read as fn(&mut Flash, u32, &mut [u8]) -> Result<(), Error>,
     );
@@ -60,13 +60,13 @@ async fn check(mut uart: Uart0, _heater: Output<21>, mut probe: Result<Probe, Er
                 let mut header = [0u8; 16];
                 let result = bus.read(0, &mut header);
                 let _ = writeln!(
-                    uart,
+                    log,
                     "flash={:?} read={result:?} header={header:02x?}\r",
                     bus.chip()
                 );
             }
             Err(error) => {
-                let _ = writeln!(uart, "flash probe failed: {error:?}\r");
+                let _ = writeln!(log, "flash probe failed: {error:?}\r");
             }
         }
         Timer::after_secs(1).await;
@@ -74,15 +74,15 @@ async fn check(mut uart: Uart0, _heater: Output<21>, mut probe: Result<Probe, Er
 }
 #[unsafe(no_mangle)]
 extern "C" fn __bl706_main() -> ! {
+    let log = Logger::init();
     let p = bl706_hal::init();
     let heater = p.pins.p21.into_output(false);
-    let uart = Uart0::new(p.uart0, p.pins.p22, p.clocks, 115_200).unwrap();
     // This RAM-only example still requires board/ROM flash-pad and SPI-mode setup.
     // Confirm Probe::new's safety contract on the target before running it.
     // This program is only built, not executed on any device here.
     let probe = unsafe { Probe::new(p.flash, p.clocks) };
     bl706_hal::enable_interrupts();
     EXECUTOR.init(bl706_hal::Executor::new()).run(|s| {
-        s.spawn(check(uart, heater, probe).unwrap());
+        s.spawn(check(log, heater, probe).unwrap());
     })
 }

@@ -24,13 +24,13 @@
 ## Board mapping
 
 Compared with U15 in the production [v2.0 schematic](https://files.pine64.org/doc/Pinecil/Pinecil_schematic_v2.0_20220608.pdf)
-and SDK alternate functions. Schematic UART1 labels name board nets; examples route
-controller **UART0 TX** to GPIO22.
+and SDK alternate functions. Schematic UART1 labels name board nets; the UART
+driver can route controller **UART0 TX** to GPIO22. Examples now use RTT instead.
 
 | Signal | GPIO | Example behavior |
 |---|---|---|
 | Tip_Control | 21 | GPIO output low; no heater drive |
-| UART TX | 22 | function7, signal6 → UART0_TXD, 115200 8N1 |
+| UART TX | 22 | Optional driver: function7, signal6 → UART0_TXD; examples leave it alone |
 | UART RX | 23 | No RX driver |
 | I²C SCL | 10 | function6 |
 | I²C SDA | 11 | function6 |
@@ -44,14 +44,14 @@ configuration to indices32..37. Other board pins are not configured automaticall
 
 ## Examples
 
-- `heartbeat`: UART banner, seconds/time, buttons and PD_IRQ level.
+- `heartbeat`: RTT banner, seconds/time, buttons and PD_IRQ level.
 - `fusb302`: once per second, `write_read(0x22, [DEVICE_ID=0x01], 1 byte)` and Result.
   No read-to-clear INTERRUPT access, RESET writes or USB-PD negotiation.
 - `i2c_latency`: reads nine FUSB302 registers0x01..0x09, blocking the executor for
   20 ms inside the first Pending poll while IRQs remain enabled. The ISR must
   advance a transfer larger than FIFO. Compiled only.
 - `fpu`: IMFC f32 result, FS/fcsr and Timer.
-- `gpio_irq`: independent GPIO waiters and UART reporter: button A any-edge with
+- `gpio_irq`: independent GPIO waiters and RTT reporter: button A any-edge with
   timeout/cancel/rearm, button B rising/falling, FUSB302 INT_N low/high. No debounce
   or clearing of FUSB302 interrupt registers; see [gpio.md](gpio.md).
 - `atomics`: isolated one-shot probes on owned RAM; see [atomics.md](atomics.md).
@@ -105,7 +105,7 @@ contract first rather than changing flash/cache registers speculatively.
    must not pulse the heater. Test IRQ60, both detectors, rising/falling/any-edge,
    simultaneous pins, cancel/rearm without stale events. Active levels complete
    immediately; edges wait for a new event. Check CLR pulse and latched-low INT_N
-   without IRQ storm or timer/UART starvation. The read-only FUSB302 example does
+   without IRQ storm or timer/log starvation. The read-only FUSB302 example does
    not clear INT_N. Use a separate free input to measure pulse width/latency under
    I²C/mtime load; never inject test signals onto heater control.
 6. **I²C analyzer:** observe START,0x44(W),0x01,repeated START,0x45(R),byte,master NACK,
@@ -123,8 +123,8 @@ contract first rather than changing flash/cache registers speculatively.
    waker registration, IRQ between polls, late END/final word and cancel cleanup.
    Run `i2c_latency`: require stalled=true, correct nine bytes/analyzer trace and
    completion despite20 ms without future polling. ISR must stop controller/IRQ
-   itself. Measure latency under nonnested IRQs/critical sections. UART polling
-   with MIE=1 should permit FIFO service, but still delays cooperative PD/timer tasks.
+   itself. Measure latency under nonnested IRQs/critical sections, including RTT
+   logging. RTT uses nonblocking writes, but formatting still consumes task time.
 10. **FPU:** check FS/fcsr/result. Fill all FPRs with distinct sentinels under the
     debugger, trigger MTIME/I²C with handler FP clobbers, compare f0..f31/fcsr/mstatus
     after mret. Measure stack watermark.

@@ -12,6 +12,7 @@ embassy-sync = "0.8.0"
 embassy-time = "0.5.1"
 embedded-storage = "0.3.2"
 embedded-storage-async = "0.4.2"
+rtt-target = "0.6.2"
 static_cell = "2.1.1"
 
 [features]

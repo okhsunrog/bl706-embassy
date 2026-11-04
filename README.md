@@ -1,8 +1,8 @@
 # BL706 PAC and Embassy bring-up
 
 Initial Bouffalo Lab BL702/704/706 support, targeting **Pinecil V2 / BL706**.
-Hardware is unavailable: startup, clocks and peripheral drivers have not been tested
-on a board. This is a research foundation, not a replacement for IronOS or a complete
+Hardware bring-up is in progress; startup, clocks and peripheral drivers still need
+board validation. This is a research foundation, not a replacement for IronOS or a complete
 soldering iron firmware.
 
 The workspace contains:
@@ -14,6 +14,7 @@ The workspace contains:
   watchdog, reset and a RAM-only blocking/async NOR flash driver.
 - `examples/pinecil-v2`: peripheral probes, a sampling cycle with no heater output,
   clock/watchdog diagnostics, a read-only flash probe, FPU and isolated atomic probes.
+  All examples log over RTT channel 0 (4 KiB, nonblocking); no UART wiring is needed.
 
 ## Build
 
@@ -86,7 +87,7 @@ HAL invariants; do not mix direct PAC writes with an active HAL driver.
   region and explicit device-ID check. It requires a RAM-only execution and board/SPI
   contract; the actual flash chip is unknown. The default probe only reads.
   No storage format, wear leveling or XIP restoration; see [flash](docs/flash.md).
-- UART0: TX on GPIO22, 115200 8N1 in examples; no RX support.
+- UART0 driver: TX on GPIO22; no RX support. Examples use RTT instead.
 - GPIO inputs/outputs and all five interrupt-driven async `Wait` modes, with cancellation.
   FUSB302 INT_N is GPIO16; no debounce or deep-sleep wakeup. See [GPIO](docs/gpio.md).
 - ADC: finite single-ended scans of 1..12 entries on GPIO18/19/20 and GND,
