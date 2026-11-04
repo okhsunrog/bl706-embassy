@@ -49439,7 +49439,7 @@ pub mod timer {
         }
         #[doc = "WVR."]
         #[inline(always)]
-        pub const fn WVR(self) -> crate::common::Reg<regs::WVR, crate::common::RW> {
+        pub const fn WVR(self) -> crate::common::Reg<regs::WVR, crate::common::R> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x6cusize) as _) }
         }
         #[doc = "WSR."]
@@ -49484,17 +49484,17 @@ pub mod timer {
         }
         #[doc = "WCR."]
         #[inline(always)]
-        pub const fn WCR(self) -> crate::common::Reg<regs::WCR, crate::common::RW> {
+        pub const fn WCR(self) -> crate::common::Reg<regs::WCR, crate::common::W> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x98usize) as _) }
         }
         #[doc = "WFAR."]
         #[inline(always)]
-        pub const fn WFAR(self) -> crate::common::Reg<regs::WFAR, crate::common::RW> {
+        pub const fn WFAR(self) -> crate::common::Reg<regs::WFAR, crate::common::W> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0x9cusize) as _) }
         }
         #[doc = "WSAR."]
         #[inline(always)]
-        pub const fn WSAR(self) -> crate::common::Reg<regs::WSAR, crate::common::RW> {
+        pub const fn WSAR(self) -> crate::common::Reg<regs::WSAR, crate::common::W> {
             unsafe { crate::common::Reg::from_ptr(self.ptr.wrapping_add(0xa0usize) as _) }
         }
         #[doc = "TCVWR2."]

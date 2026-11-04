@@ -84,3 +84,19 @@ for p,name,offset,access in [
     assert int(register.findtext("addressOffset"),0) == offset
     assert register.findtext("access","read-write") == access
 print("ADC/PWM/TIMER reviewed base/access/IRQ assertions OK")
+
+assert int(ps['sf_ctrl'].findtext('baseAddress'),0)==0x4000b000
+for p,name,offset,access in [
+    ('glb','dll',0x200,'read-write'),('glb','swrst_cfg2',0x18,'read-write'),
+    ('aon','rf_top_aon',0x880,'read-write'),('aon','xtal_cfg',0x884,'read-write'),
+    ('hbn','HBN_GLB',0x30,'read-write'),
+    ('timer','WMER',0x64,'read-write'),('timer','WMR',0x68,'read-write'),
+    ('timer','WVR',0x6c,'read-only'),('timer','WSR',0x70,'read-write'),
+    ('timer','WCR',0x98,'write-only'),('timer','WFAR',0x9c,'write-only'),('timer','WSAR',0xa0,'write-only'),
+    ('sf_ctrl','sf_ctrl_0',0,'read-write'),('sf_ctrl','sf_ctrl_1',4,'read-write'),
+    ('sf_ctrl','sf_if_sahb_0',8,'read-write'),('sf_ctrl','sf_if_sahb_1',12,'read-write'),('sf_ctrl','sf_if_sahb_2',16,'read-write'),
+]:
+    register=ps[p].find(f"./registers/register[name='{name}']")
+    assert int(register.findtext('addressOffset'),0)==offset
+    assert register.findtext('access','read-write')==access
+print('Clock/reset/watchdog/SF_CTRL reviewed register assertions OK')

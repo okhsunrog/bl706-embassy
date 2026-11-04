@@ -61,11 +61,11 @@ fn arm(queue: &mut Queue) {
 pub(crate) fn on_interrupt() {
     critical_section::with(|cs| arm(&mut DRIVER.queue.borrow(cs).borrow_mut()));
 }
-pub(crate) unsafe fn init() {
+pub(crate) unsafe fn init(clocks: crate::clock::Clocks) {
     pac::GLB.CPU_CLK_CFG().modify(|r| r.set_cpu_rtc_en(false));
     pac::GLB.CPU_CLK_CFG().modify(|r| {
         r.set_cpu_rtc_sel(false); // BCLK
-        r.set_cpu_rtc_div(31); // 32 MHz / (31+1) = nominal 1 MHz
+        r.set_cpu_rtc_div(u32::from(clocks.mtime_divider() - 1));
     });
     set_compare(u64::MAX);
     // Start at zero for reproducible deadlines; no existing driver may be alive.

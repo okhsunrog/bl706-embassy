@@ -186,8 +186,8 @@ impl<const N: u8> Timer<N> {
     pub fn clock_hz(&self) -> u32 {
         let source = match self.config.clock {
             ClockSource::System => self.clocks.cpu_hz(),
-            ClockSource::Clock32K => 32_000,
-            ClockSource::Clock1K => 1_000,
+            ClockSource::Clock32K => self.clocks.low_frequency_hz(),
+            ClockSource::Clock1K => self.clocks.low_frequency_hz() / 32,
         };
         source / u32::from(self.config.divider)
     }

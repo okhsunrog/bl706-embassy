@@ -1,75 +1,80 @@
-# Допущения и план проверки Pinecil V2
+# Pinecil V2 assumptions and hardware checklist
 
-## Контракт первого запуска
+## First-run contract
 
-- BL706, один hart, machine mode, холодный reset/ROM ISP; не attach к работающей IronOS.
-- Отладчик загружает все PT_LOAD segments ELF по их VMA=LMA. `.data` не копируется
-  из flash: debugger уже загрузил её. `.bss` обнуляется startup.
-- `.init` и clock transition находятся в ITCM `0x22010000..0x22013fff`;
-  остальные sections/stack — в нижних 48 KiB OCRAM `0x22020000..0x2202bfff`.
-  Верхние 16 KiB OCRAM оставлены под возможное reset/ROM EM allocation.
-- ITCM/OCRAM доступны после reset без изменения cache partition. Это допущение
-  необходимо проверить для конкретного BL706/ROM и debug reset sequence.
-- RC32M включён после reset. Выбирается RC32M root, HCLK/BCLK div=0. Частота номинальная;
-  trim не калибруется, XTAL32M/DLL144M не включаются.
-- Код изменения bus divider исполняется в ITCM без stack accesses: SDK предупреждает
-  о краткой остановке BCLK/OCRAM при latch divider через `0x40000ffc`.
-- CLIC использует SDK layout: IP +0x000, IE +0x400, CFG +0x800, global +0xc00.
-  `mtvec=handler|3`, `mtvt=vector table`; оба base выровнены на 64 байта.
-  Нестирование запрещено, handler не включает MIE.
-- Внешние I²C pull-ups существуют на плате; частота/фронты не измерены.
+- BL706, one hart, machine mode, cold reset/ROM ISP; do not attach over running IronOS.
+- Debugger loads all ELF PT_LOAD segments at VMA=LMA. Startup does not copy `.data`
+  from flash because the debugger loads it; startup clears `.bss`.
+- `.init` and clock transitions use ITCM `0x22010000..0x22013fff`; remaining sections
+  and stack use the lower 48 KiB OCRAM `0x22020000..0x2202bfff`. Upper OCRAM 16 KiB
+  is reserved for possible reset/ROM EM allocation.
+- ITCM/OCRAM are accessible after reset without changing cache partition. Verify
+  this for the actual BL706/ROM and debug-reset sequence.
+- RC32M is available after reset. Default init selects RC32M with CPU/BCLK divisors1;
+  trim is not calibrated. Only `system` attempts XTAL/DLL144 and explicitly falls
+  back on XTAL timeout. See [clock assumptions](system.md).
+- Bus-divider latch code runs in ITCM without stack accesses: SDK warns that
+  latching through `0x40000ffc` briefly stops BCLK/OCRAM.
+- CLIC uses SDK layout: IP+0x000, IE+0x400, CFG+0x800, global+0xc00.
+  `mtvec=handler|3`, `mtvt=vector table`, both bases aligned to 64 bytes.
+  No nesting: handlers do not enable MIE.
+- Board I²C pull-ups exist; actual rates/rise times have not been measured.
+- Flash probe additionally requires the RAM/SPI/pad/timing contract in [flash.md](flash.md).
 
-## Разводка
+## Board mapping
 
-Сверено с U15 производственной [схемы v2.0](https://files.pine64.org/doc/Pinecil/Pinecil_schematic_v2.0_20220608.pdf)
-и SDK alternate functions. Сигнальные имена UART1 на схеме обозначают сеть платы;
-в примерах к GPIO22 маршрутизируется контроллер **UART0 TX**.
+Compared with U15 in the production [v2.0 schematic](https://files.pine64.org/doc/Pinecil/Pinecil_schematic_v2.0_20220608.pdf)
+and SDK alternate functions. Schematic UART1 labels name board nets; examples route
+controller **UART0 TX** to GPIO22.
 
-| Сигнал | GPIO | Действие примеров |
+| Signal | GPIO | Example behavior |
 |---|---|---|
-| Tip_Control | 21 | GPIO output low; heater не включается |
+| Tip_Control | 21 | GPIO output low; no heater drive |
 | UART TX | 22 | function7, signal6 → UART0_TXD, 115200 8N1 |
-| UART RX | 23 | драйвер RX не реализован |
+| UART RX | 23 | No RX driver |
 | I²C SCL | 10 | function6 |
 | I²C SDA | 11 | function6 |
-| FUSB302 INT_N | 16 | input pull-up, GPIO IRQ/level waits |
-| Button A / B | 25 / 28 | input pull-down |
+| FUSB302 INT_N | 16 | Pull-up input, GPIO IRQ/level waits |
+| Button A / B | 25 / 28 | Pull-down inputs |
 
-У IronOS `Pins.h` SCL/SDA подписаны наоборот. Его `pinmux_config.h` на обоих
-пинах включает function6 и потому не меняет действительную аппаратную разводку.
-Это расхождение особенно существенно для будущего GPIO bus recovery.
-GPIO23..28 учитывают `GPIO_USE_PSRAM__IO`: SDK может перенаправлять pad config на
-индексы 32..37. Функции других выводов паяльника автоматически не настраиваются.
+IronOS `Pins.h` reverses the SCL/SDA labels. Its `pinmux_config.h` selects function6
+on both pins, so that discrepancy does not alter hardware routing; it matters for
+future GPIO bus recovery. GPIO23..28 honor `GPIO_USE_PSRAM__IO`: SDK can remap pad
+configuration to indices32..37. Other board pins are not configured automatically.
 
-## Примеры
+## Examples
 
-- `heartbeat`: UART banner, счётчик/время раз в секунду, кнопки и уровень PD_IRQ.
-- `fusb302`: `write_read(0x22, [DEVICE_ID=0x01], 1 byte)` раз в секунду, печать Result.
-  Не читает read-to-clear INTERRUPT, не пишет RESET, не ведёт USB-PD negotiation.
-- `i2c_latency`: чтение девяти readable registers FUSB302 (0x01..0x09) с блокировкой
-  executor на 20 ms внутри первого Pending poll, при включённых IRQ. Передача
-  больше FIFO должна продвигаться из ISR. Пример пока только собран.
-- `fpu`: IMFC f32 result, FS/fcsr, Timer.
-- `gpio_irq`: три независимых GPIO waiters и UART reporter: кнопка A any-edge с
-  timeout/cancel/rearm, кнопка B rising/falling, FUSB302 INT_N low/high.
-  Без debounce и без очистки FUSB302 interrupt registers; подробности [gpio.md](gpio.md).
-- `atomics`: отдельные однократные probes собственной RAM, см. [atomics](atomics.md).
-- `analog`: ADC scan CH10/9/8, TIMER1 compare, unrouted PWM0 period IRQ, лог trim и samples.
-- `sampling`: TIMER0 ISR владеет ADC и unrouted PWM1; три compare-фазы, latest frame
-  через Signal. GPIO21 остаётся low; это dry-run без нагревателя, см. [analog.md](analog.md).
+- `heartbeat`: UART banner, seconds/time, buttons and PD_IRQ level.
+- `fusb302`: once per second, `write_read(0x22, [DEVICE_ID=0x01], 1 byte)` and Result.
+  No read-to-clear INTERRUPT access, RESET writes or USB-PD negotiation.
+- `i2c_latency`: reads nine FUSB302 registers0x01..0x09, blocking the executor for
+  20 ms inside the first Pending poll while IRQs remain enabled. The ISR must
+  advance a transfer larger than FIFO. Compiled only.
+- `fpu`: IMFC f32 result, FS/fcsr and Timer.
+- `gpio_irq`: independent GPIO waiters and UART reporter: button A any-edge with
+  timeout/cancel/rearm, button B rising/falling, FUSB302 INT_N low/high. No debounce
+  or clearing of FUSB302 interrupt registers; see [gpio.md](gpio.md).
+- `atomics`: isolated one-shot probes on owned RAM; see [atomics.md](atomics.md).
+- `analog`: ADC CH10/9/8 scan, TIMER1 compare, unrouted PWM0 period IRQ, trim/sample logs.
+- `sampling`: TIMER0 ISR owns ADC and unrouted PWM1, with three compare phases and
+  latest-frame Signal. GPIO21 stays low; see [analog.md](analog.md).
+- `system`: XTAL/DLL144 attempt/fallback, clock/reset logs and watchdog feed every100 ms.
+  It does not call system reset, but stopping feed/debug halt may cause watchdog reset.
+- `flash_probe`: JEDEC/status and a 16-byte read only. Compile-only trait wrappers
+  are retained but never called. It creates no runtime writable region.
 
-Read-only probe намеренно не проверяет ID на одно фиксированное значение:
-варианты FUSB302 и FUSB302B отличаются. Зафиксировать фактическую маркировку U1 и ID.
+FUSB302 probes do not require one fixed ID because FUSB302/FUSB302B variants differ.
+Record the actual U1 marking and ID.
 
-## Порядок аппаратной проверки
+## Hardware validation order
 
-Для первого bring-up снять жало, использовать питание с ограничением тока и
-проверить низкий уровень Tip_Control. Подготовить backup штатной flash и способ
-возврата в ROM ISP. RAM ELF не является разрешением или инструкцией стирать flash.
-Этот проект никаких hardware writes автоматически не выполняет.
+For first bring-up, remove the tip, use current-limited power and check Tip_Control
+low. Obtain a verified backup of stock flash and a ROM ISP recovery path. A RAM ELF
+is not an instruction or authorization to erase flash. No hardware tests or device
+writes were performed while developing this repository.
 
-После подготовки подходящего JTAG adapter/OpenOCD target-конфига пример ручной
-RAM-загрузки в GDB выглядит так; эти команды здесь **не выполнялись**:
+After preparing an appropriate JTAG adapter/OpenOCD target configuration, a manual
+RAM load could use the following GDB commands. They have **not** been executed here:
 
 ```gdb
 file target/riscv32imc-unknown-none-elf/release/heartbeat
@@ -81,82 +86,85 @@ break bl706_fatal_trap
 continue
 ```
 
-Если отладчик не может загрузить ITCM/OCRAM после reset, сначала установить его
-memory/reset contract. Не заменять это произвольной записью flash/cache registers.
+If ITCM/OCRAM cannot be loaded after reset, establish the debugger memory/reset
+contract first rather than changing flash/cache registers speculatively.
 
-1. **Reset/RAM:** проверить debugger ID и CSR, записать ROM/SiFive revision,
-   загрузить ELF, убедиться в entry `0x22010000`, stack в OCRAM, обнулении bss,
-   сохранении `.data`. Отдельно проверить после cold reset и debugger reset.
-2. **Clocks/UART:** пройти clock transition пошагово; прочитать HBN_GLB и dividers.
-   Измерить UART bit time/8N1. Проверить timeout при остановленном UART и отсутствие
-   зависания logging. RC timing сверять внешним прибором, не собственным mtime.
-3. **Trap/CLIC:** вызвать контролируемое исключение, проверить BL706_TRAP.
-   Прочитать mtvec/mtvt, включить MTIME и проверить возврат через mret. Убедиться,
-   что не возникают непрерывные pending IRQ после обслуживания.
-4. **Time/executor:** heartbeat ≥10 минут без пропусков/застреваний. Несколько tasks
-   с разными deadline, уже истёкший deadline, перепрограммирование на более ранний,
-   cancellation и повторное использование waker. Принудительно поставить mtime
-   около rollover low32 и проверить hi/lo/hi чтение. Измерить дрейф RC.
-5. **GPIO:** проверить кнопки и PD_IRQ полярность, SF pad remapping для GPIO25/28.
-   Изменения OE не должны давать импульс heater. Запустить `gpio_irq`, проверить
-   IRQ 60 и возврат, rising/falling/any-edge обоих кнопок, несколько simultaneous
-   pins, timeout/cancel/rearm без stale completion. Уже активные low/high должны
-   завершаться сразу, edges ждать нового фронта. Проверить оба детектора и CLR
-   pulse осциллографом/чтением регистров. Удержание INT_N low не должно создавать
-   IRQ storm или мешать timer/UART. Для FUSB302 достаточно наблюдения; read-only
-   пример не снимает latched INT_N. На отдельном свободном входе проверить внешние
-   импульсы разной ширины и latency при I²C/mtime IRQ; не подавать их на линии heater.
-6. **I²C analyzer:** для DEVICE_ID увидеть START, 0x44(W), 0x01, repeated START,
-   0x45(R), byte, master NACK и STOP. Проверить именно GPIO10=SCL/GPIO11=SDA,
-   фактическую скорость около 100 kHz, clock stretching и отсутствие переполнений.
-7. **I²C failures:** NACK на заведомо незанятом адресе; удержание SDA/SCL; timeout;
-   отмена future посреди передачи; затем удачная новая транзакция. Проверить, что
-   после drop отключены CLIC/I²C masks, m_en=0, FIFO очищены. При физически зажатой
-   линии controller cleanup не заменяет bus recovery. При error/cancel внешний
-   RX-буфер должен оставаться неизменным. Никаких обещаний auto-recovery.
-8. **FIFO/transactions:** на внешнем тестовом slave прогнать read/write lengths
-   1,2,3,4,5,7,8,9,255,256; sub-address 1..4; проверить порядок байтов и отсутствие
-   padding на проводе. Unsupported shapes/zero/257 не должны начинать обмен.
-   Проверить data NACK, ARB loss и FIFO error при возможной инъекции.
-9. **Concurrency:** timer task продолжает исполняться во время I²C/timeout.
-   Проверить completion до регистрации waker, IRQ между polls, late END/final RX
-   word и stop transfer после cancel. Запустить `i2c_latency`: ожидать stalled=true,
-   успешный обмен и корректные девять байт на analyzer, несмотря на 20 ms без
-   polling future. При намеренной задержке waiter аппаратная операция должна
-   завершиться и отключить IRQ/controller непосредственно в ISR. Отдельно
-   измерить задержку ISR, влияние других ненестированных IRQ и critical sections.
-   Длительный UART polling блокирует cooperative executor, но при MIE=1 не должен
-   мешать FIFO service. Он по-прежнему может задерживать PD policy и timers tasks.
-10. **FPU:** проверить FS/fcsr и битовый результат примера. Под отладчиком заполнить
-    все FPR различимыми sentinel, вызвать MTIME/I²C IRQ с изменением FP-регистров
-    внутри handler и сравнить f0..f31/fcsr/mstatus после mret. Проверить stack watermark.
-11. **Atomics:** отдельный binary, записать результаты и traps обеих probes,
-    не включать A-target по результату одной успешной операции. Проверку других
-    aliases/памяти/DMA проектировать отдельно; произвольные MMIO не использовать.
-12. **TIMER:** в `analog` проверить IRQ 53 и независимость `mtime`, затем IRQ 52 в
-    `sampling`. Прочитать shared TCCR/TCDR/TCER/TCMR до/после настройки второго канала,
-    убедиться, что первый канал и watchdog fields не изменились. Capture request
-    должен давать меняющийся count. Измерить реальные compare/preload интервалы,
-    включая SDK offset в два тика, stop/restart, rollover, cancel/rearm, pending до
-    waker. 32K/1K отдельно проверять только после установления их clock readiness.
-13. **ADC:** сначала GND с `Adc<()>`, затем CH8/9/10 с известным напряжением и
-    измерением мультиметром. Проверить FIFO channel tags (negative=23), порядок
-    восьми позиций, 12/14/16-bit alignment, короткие scans 1..12, timeout/cancel/reuse,
-    overrun/underrun/saturation. Зафиксировать доступность boot shadow, enable/parity
-    trim и различие raw/calibrated readings; не считать отсутствие ошибки калибровкой.
-    Проверить 100 us restart pause, analog settling, reference и влияние нагрева
-    только в отдельном, явно подготовленном аппаратном тесте. Здесь нагрев не включать.
-14. **PWM:** начать с unrouted counter/IRQ 49. Для waveform выбрать отдельный
-    проверенный pad/fixture, не GPIO21. Проверить divider/period, duty 0/50/100%,
-    enable/disable/drop-low, STS_TOP timeout и period IRQ clear 1→0. Одновременные
-    каналы/IRQ не должны менять соседние masks; cancel не должен отключать чужой PWM.
-15. **Dry-run sampling:** при GPIO21 low проверить три фазы TIMER0/ADC и выход frames.
-    Задержать cooperative task, оставив MIE=1: ISR должен продолжать цикл, Signal
-    может пропускать frames. Отдельно задержать IRQ до coalesced compare или ошибки
-    ADC и проверить остановку dry-run. Измерить latency и stack watermark под
-    одновременной нагрузкой I²C/GPIO/mtime; эта проверка ещё не является допуском
-    к реальному управлению нагревателем.
+1. **Reset/RAM:** record debugger ID, CSRs, ROM/SiFive revision. Check entry
+   `0x22010000`, OCRAM stack, cleared bss and preserved data after both cold/debug reset.
+2. **Clocks/UART:** step transitions; read HBN_GLB/dividers, measure bit time/8N1,
+   UART timeout and bounded logging. Use an external reference, not mtime, to
+   measure RC error. For `system`, verify XTAL cap codes/readiness/fallback, DLL96/144
+   rates, safe divisor ordering, no OCRAM corruption, UART/I²C/PWM/TIMER rates and
+   mtime remaining1 MHz across profiles. Check RC32K startup and measured32K/1K.
+3. **Trap/CLIC:** trigger a controlled exception, inspect BL706_TRAP and mtvec/mtvt,
+   enable MTIME, verify mret and absence of permanently pending IRQs.
+4. **Time/executor:** run heartbeat for >=10 minutes, multiple deadlines, expired
+   deadlines, earlier reprogramming, cancel/reuse. Put mtime near low32 rollover;
+   verify hi/lo/hi reads and measure RC drift.
+5. **GPIO:** check buttons/PD_IRQ polarity and GPIO25/28 SF-pad remap. OE changes
+   must not pulse the heater. Test IRQ60, both detectors, rising/falling/any-edge,
+   simultaneous pins, cancel/rearm without stale events. Active levels complete
+   immediately; edges wait for a new event. Check CLR pulse and latched-low INT_N
+   without IRQ storm or timer/UART starvation. The read-only FUSB302 example does
+   not clear INT_N. Use a separate free input to measure pulse width/latency under
+   I²C/mtime load; never inject test signals onto heater control.
+6. **I²C analyzer:** observe START,0x44(W),0x01,repeated START,0x45(R),byte,master NACK,
+   STOP. Confirm GPIO10=SCL/GPIO11=SDA, approximately100 kHz, clock stretching and
+   no overruns.
+7. **I²C failures:** NACK at an unused address, held SDA/SCL, timeout, mid-transfer
+   future cancellation, then a new successful transfer. Check CLIC/I²C masks off,
+   m_en=0 and cleared FIFOs after Drop. Controller cleanup is not recovery from a
+   physically stuck line. Caller RX must remain unchanged on error/cancel.
+8. **FIFO/transactions:** external test slave, lengths1,2,3,4,5,7,8,9,255,256 and
+   sub-address lengths1..4; check byte order/no padding. Unsupported/zero/257-byte
+   shapes must not start bus activity. Inject data NACK, arbitration/FIFO errors
+   where possible.
+9. **Concurrency:** timer tasks continue during I²C/timeout. Test completion before
+   waker registration, IRQ between polls, late END/final word and cancel cleanup.
+   Run `i2c_latency`: require stalled=true, correct nine bytes/analyzer trace and
+   completion despite20 ms without future polling. ISR must stop controller/IRQ
+   itself. Measure latency under nonnested IRQs/critical sections. UART polling
+   with MIE=1 should permit FIFO service, but still delays cooperative PD/timer tasks.
+10. **FPU:** check FS/fcsr/result. Fill all FPRs with distinct sentinels under the
+    debugger, trigger MTIME/I²C with handler FP clobbers, compare f0..f31/fcsr/mstatus
+    after mret. Measure stack watermark.
+11. **Atomics:** isolated binary; record LR/SC and AMO results/traps. One success
+    does not justify an A target. Other aliases/DMA need separate tests; no arbitrary MMIO.
+12. **TIMER:** check IRQ53 in `analog`, IRQ52 in `sampling`, independent mtime and
+    preservation of adjacent channel/watchdog TCCR/TCDR/TCER/TCMR fields. Verify
+    capture progression, actual compare/preload intervals including the SDK two-tick
+    discrepancy, stop/restart, rollover, cancel/rearm and pending-before-waker.
+    Measure low-frequency sources rather than assuming readiness.
+13. **ADC:** start with GND via `Adc<()>`, then known voltages on CH8/9/10 measured
+    externally. Verify tags (negative=23), eight-entry order,12/14/16-bit alignment,
+    scans1..12, timeout/cancel/reuse and overrun/underrun/saturation. Record shadow
+    readiness, trim enable/parity and raw/calibrated differences. Check100 us restart
+    pause, settling and reference. Heating interference needs a separate explicitly
+    prepared test; do not enable heating in these examples.
+14. **PWM:** start unrouted with IRQ49. Use a separately verified fixture/pad for
+    waveform, not GPIO21. Check divider/period,0/50/100%,enable/disable/Drop-low,
+    STS_TOP timeout and clear1→0. Multiple channels/cancel must preserve neighbors.
+15. **Dry-run sampling:** with GPIO21 low, verify three phases/frames. Delay tasks
+    with MIE=1: ISR must continue and Signal may replace frames. Delay IRQs until
+    compares coalesce or ADC errors; verify dry-run stop. Measure latency/stack
+    under I²C/GPIO/mtime load. This does not qualify heater operation.
+16. **Watchdog/reset:** after verifying the recovery path, measure expiry/feed/stop
+    on both sources and dividers, then intentionally omit feed. Inspect independent
+    HBN/WSR flags before/after explicit clear, preservation of TIMER0/1, behavior
+    while debug-halted and Drop leaving WDT active. Separately call system reset
+    and verify its ROM/flash boot path; a RAM ELF is not self-restarting.
+17. **Flash read:** first establish the unsafe RAM/pad/timing/SPI contract, record
+    chip marking/JEDEC ID, status/protection and capacity against its datasheet.
+    Capture SPI commands/clock, compare boundary reads with an independent dump,
+    and check controller timeouts/Drop without attempting XIP resumption.
+18. **Flash write, separately authorized:** retain a verified original backup;
+    confirm a reserved sector outside firmware/data and the full expected JEDEC ID,
+    then obtain approval immediately before writing hardware. Test page-crossing
+    program,4 KiB erase/readback, bounds/alignment/0→1/protection, blocking/async,
+    IRQ progress, cancellation with WIP still active and next-request behavior.
+    Verify timeout poisoning and unchanged neighboring sectors. Power-loss/endurance
+    tests require separate expendable data and are not implied by compile success.
 
-Ни один пункт этого списка пока не выполнен на железе. Для дальнейшего обычного
-USB flashing отдельно потребуются boot header, flash parameters, boot2/ROM contract,
-XIP/cache setup, linker layout и проверенный путь упаковки образа.
+None of these items has been completed on hardware. Normal USB flashing additionally
+needs boot headers/flash parameters, a boot2/ROM contract, XIP/cache setup, a linker
+layout and a verified image-packaging path.

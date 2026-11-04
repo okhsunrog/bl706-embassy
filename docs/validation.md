@@ -1,70 +1,77 @@
-# Локальная проверка
+# Local validation
 
-2026-11-04, host x86_64-linux/NixOS. **Плата не подключалась, аппаратных результатов нет.**
+2026-11-04, x86_64-linux/NixOS. **No board was connected; there are no hardware results.**
 
-## Пройдено
+## Checks
 
-| Проверка | Результат |
+| Check | Result |
 |---|---|
-| `nix build .#chiptool --no-link` | Pinned chiptool и git SVD parser собраны с lockfile/fixed-output hashes |
-| `nix build .#firmware .#checks.x86_64-linux.pac --no-link` | Первоначальная проверка sandbox IMC firmware и PAC; актуальный набор проверяется через `nix flake check` |
-| `nix flake check` | Оценка packages/checks/devShell и обе sandbox checks на x86_64-linux успешны |
-| `nix develop -c bash tools/check.sh` | Весь набор ниже прошёл с exit 0 |
-| Сравнение SVD | Неизменные source hashes, semantic comparison и assertions исправленных bases/IRQ/gates |
-| `cargo fmt --all --check` | Успех |
-| Host PAC build/test/doc-test | Успех компиляции; собственных unit tests у сгенерированного PAC нет |
-| Host I²C transfer engine | 10 тестов: TX/RX для всех длин 1..256 без polls waiter; bounded FIFO service; END/error races; late final word; cancel/stale IRQ/reuse; независимость TX от caller storage |
-| Host GPIO IRQ engine | 7 тестов: mode fields всех 32 пинов, level/edge/any-edge, событие до poll, level/unmask race, несколько пинов, cancel/stale IRQ/rearm |
-| Host ADC/PWM/TIMER logic | 10 тестов: ADC engine lengths 1..12 без waiter polls, ошибки до/после drain, tags/extra/cancel/reuse; restart gate; scan packing; resolution; все 4096 gain trims/parity/sign/clamp; PWM limits; TIMER divider/preload и shared field preservation |
-| IMC release | heartbeat, fusb302, i2c_latency, gpio_irq, analog, sampling, atomics link успешно |
-| IMFC release + build-std=core | heartbeat, fusb302, i2c_latency, gpio_irq, analog, sampling, fpu link успешно |
-| Clippy `-D warnings` | IMC с atomic-probe и IMFC с fpu проходят; generated PAC отдельно допускает стандартные generator lints |
-| ELF32 audit | RAM bounds, VMA=LMA, entry, stack 8 KiB, vector table 80 entries с handlers 7/25/48/49/52/53/60, mtvec/mtvt alignment 64, ABI |
-| Instruction encoding audit | В обычных 13 ELF нет A-opcodes; в atomics ровно 3 на точных probe labels; в IMC нет FP; в IMFC есть save/restore всех 32 FPR |
+| `nix build .#chiptool --no-link` | Pinned chiptool/SVD parser build with lockfile and fixed-output hashes |
+| `nix flake check` | Packages/checks/devShell evaluation and both x86_64-linux sandbox checks |
+| `nix develop -c bash tools/check.sh` | Full suite below, exit0 |
+| SVD comparison | Immutable input hashes, semantic comparison, corrected bases/IRQ/gates/access assertions |
+| `cargo fmt --all --check` | Pass |
+| Host PAC build/test/doc-test | Builds; generated PAC has no unit tests |
+| Host I²C engine | 10 tests: all TX/RX lengths1..256 without waiter polls, bounded service, END/error/late-word races, cancel/stale IRQ/reuse, caller-storage independence |
+| Host GPIO engine | 7 tests: all32 mode fields, levels/edges, early events, level/unmask race, multiple pins, cancel/stale IRQ/rearm |
+| Host ADC/PWM/TIMER | 10 tests: scans1..12, errors/tags/extra/cancel/reuse, restart gate, packing/resolution, all4096 trims/parity/sign/clamp, PWM/TIMER bounds and shared fields |
+| Host clocks/watchdog | 4 tests: rate plans, mux encodings, bounds, timeout rounding |
+| Host NOR engine | 8 tests: region/ID/bounds/alignment, command encoding, page splitting, program/erase/readback, preconditions/protection, persistent pending, timeout/poison |
+| IMC release | heartbeat, fusb302, i2c_latency, gpio_irq, analog, sampling, system, flash_probe and isolated atomics link |
+| IMFC release/build-std=core | Same eight normal examples plus fpu link |
+| Clippy `-D warnings` | IMC with atomic-probe and IMFC with fpu pass; generated PAC permits standard generator lints |
+| ELF32 layout | RAM bounds, VMA=LMA, entry,8 KiB stack,80-entry vector table/handlers7/25/48/49/52/53/60,64-byte mtvec/mtvt alignment, ABI |
+| Clock/flash placement | Both clock-latch functions in ITCM; four compile-only flash wrappers retained in RAM |
+| Instruction encodings | No A opcodes in17 normal ELF files; exactly3 labelled probes in atomics; no FP in IMC; all32 FPR spills/reloads in IMFC |
 
-Регенерация с chiptool из git checkout и с Nix archive build даёт одинаковый PAC:
-
-```text
-72d6e7dad00c03acb0d9231636a49d0d753555c6d6b9e833b1bc7bccc5cb7153
-```
-
-Для этого нормализован только banner генератора, содержащий необязательный git commit/date.
-Обычная прошивка, собранная в checkout и Nix sandbox, может отличаться debug paths;
-битовая идентичность этих ELF между разными путями сборки не проверялась.
-
-Полные логи текущего выполнения находятся вне репозитория:
+The 39 host tests exercise production logic but not the physical MCU. PAC generation
+from the git checkout and the Nix archive build yields the same SHA-256:
 
 ```text
-/home/okhsunrog/tmp_zfs/codex_tmp/bl706/analog-check.log
-/home/okhsunrog/tmp_zfs/codex_tmp/bl706/analog-nix-check.log
+dff5e9208db52a2122ad5a50a5c6d1cde5d74a1cdd70020484ab0db28c10190f
 ```
 
-## Практические границы
+Only the optional generator git-commit/date banner is normalized. Normal firmware
+built in the checkout and sandbox may differ in debug paths; cross-path ELF bit
+reproducibility was not tested.
 
-Host-модель проверяет используемый ISR transfer engine, включая stop/mask на
-завершении, но не моделирует BL706, CLIC, W1C side effects, реальное время появления
-END/NAK, IRQ latency или физический STOP. `i2c_latency` предназначен для аппаратной
-проверки прогресса девятибайтного чтения при блокировке executor на 20 ms;
-фактически этот сценарий на устройстве ещё не выполнялся. Владение packet memory
-и ограничения отмены описаны в [i2c.md](i2c.md).
-GPIO-модель исполняет production state engine, но не MMIO/waker/future Drop glue
-на RISC-V и не реальные GPIO/CLIC. `gpio_irq` только собран; CLR pulse, async modes,
-маршрутизация обоих детекторов, latency и отсутствие IRQ storm требуют платы.
-См. [gpio.md](gpio.md).
-ADC/PWM/TIMER host-тесты исполняют pure logic и ADC transfer engine, но не MMIO,
-реальный FIFO/status/W1C, waker/Drop glue на MCU или timer callbacks. `analog` и
-`sampling` только собраны; accuracy/clock/settling, FIFO tags, capture, compare
-offset, PWM waveform, IRQ latency и fail-off timing не измерялись. В обоих примерах
-PWM unrouted и GPIO21 low; регулятор нагрева не реализован. См. [analog.md](analog.md).
-Проверка наличия FP spills/reloads в ELF не заменяет runtime register-sentinel test.
-Nix sandbox success не подтверждает работоспособность startup/clock tree.
+Current full logs are outside the repository:
 
-Ожидают железа: RAM reset/load contract, такты/точность UART, возврат из CLIC IRQ,
-mtime deadlines/rollover, GPIO pad mapping/IRQ/levels/edges/cancel, I²C repeated START/FIFO/errors/cancel,
-FUSB302 ID и INT_N, FPU/context, а также traps/результаты LR/SC и AMO на конкретной
-ревизии BL706; ADC readings/calibration, PWM waveform/IRQ и TIMER preload/capture.
-Подробный порядок — [hardware.md](hardware.md).
+```text
+/home/okhsunrog/tmp_zfs/codex_tmp/bl706/system-flash-check.log
+/home/okhsunrog/tmp_zfs/codex_tmp/bl706/system-flash-nix-check.log
+```
 
-AArch64 Nix environment объявлен, но сборкой здесь не проверялся. Отдельного QEMU
-или register-level simulator для BL706 не запускалось; эмуляция другого RISC-V SoC
-не считалась бы подтверждением BL706.
+## Practical limits
+
+The I²C model checks its ISR engine and completion stop/mask, not BL706/CLIC, W1C
+side effects, END/NAK timing, IRQ latency or physical STOP. `i2c_latency` is compiled
+but has never demonstrated nine-byte progress during20 ms executor blockage on a
+board. See [I²C ownership/cancellation](i2c.md).
+
+GPIO tests run the state engine, not target MMIO/waker/future Drop glue, pads,
+CLR pulse timing, detector routing or IRQ return. `gpio_irq` is compiled only;
+see [gpio.md](gpio.md).
+
+ADC/PWM/TIMER tests cover logic/ADC engine, not physical FIFO/tags/W1C, callbacks,
+accuracy, settling, capture, compare offsets, waveforms, IRQ latency or fail-off timing.
+`analog`/`sampling` leave PWM unrouted and GPIO21 low, without a heater regulator.
+See [analog.md](analog.md).
+
+Clock plans/ITCM placement do not prove the MMIO transition sequence, oscillator
+stability, calibration or reset behavior. Watchdog timing/expiry/reset flags/debug
+behavior have not been measured. See [system.md](system.md).
+
+NOR tests run the production engine against memory-backed transport, not SF_CTRL,
+SRAM arbitration, SPI timing, real WIP, power loss/endurance or XIP/cache behavior.
+The flash example only reads at runtime; write/erase wrappers are linked but never
+called. The actual chip ID and unsafe RAM/SPI contract are unconfirmed.
+See [flash.md](flash.md).
+
+FP spills/reloads do not replace a runtime register-sentinel test. Nix sandbox
+success is not proof of startup or clock-tree operation. LR/SC/AMO results/traps on
+the actual BL706 revision remain unknown. All pending device checks and write
+prerequisites are listed in [hardware.md](hardware.md).
+
+The AArch64 Nix environment is declared but was not built here. No QEMU or BL706
+register-level simulator was run; emulating a different RISC-V SoC would not validate BL706.

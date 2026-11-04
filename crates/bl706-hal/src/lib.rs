@@ -9,15 +9,20 @@ pub use embedded_hal_async;
 pub use portable_atomic;
 pub mod adc;
 pub mod clock;
+mod clock_logic;
+pub mod flash;
+mod flash_logic;
 pub mod gpio;
 pub mod i2c;
 pub mod interrupt;
 mod peripheral_logic;
 pub mod pwm;
+pub mod reset;
 mod runtime;
 pub mod time;
 pub mod timer;
 pub mod uart;
+pub mod watchdog;
 
 use core::cell::Cell;
 use critical_section::Mutex;
@@ -36,20 +41,33 @@ pub struct Peripherals {
     pub pwm3: pwm::PwmToken<3>,
     pub pwm4: pwm::PwmToken<4>,
     pub clocks: clock::Clocks,
+    pub watchdog: watchdog::WatchdogToken,
+    pub reset_reason: reset::ResetReason,
+    pub flash: flash::FlashToken,
 }
 
 /// Initialize once in machine mode, after this runtime's RAM reset entry.
 pub fn init() -> Peripherals {
+    init_with_config(clock::Config::default()).expect("default clock initialization failed")
+}
+
+/// Freeze clocks before constructing any peripheral drivers. Retry is allowed after XTAL timeout.
+pub fn init_with_config(config: clock::Config) -> Result<Peripherals, clock::Error> {
+    config.plan()?;
     critical_section::with(|cs| {
-        assert!(!TAKEN.borrow(cs).replace(true), "HAL initialized twice");
+        if TAKEN.borrow(cs).get() {
+            return Err(clock::Error::AlreadyInitialized);
+        }
         // SAFETY: sole initialization. Global IRQ enable is left to the caller
         // after the critical section, so no interrupt can observe partial state.
         unsafe {
+            let reset_reason = reset::reason();
+            let clocks = clock::init(config)?;
+            TAKEN.borrow(cs).set(true);
             interrupt::init();
             gpio::init();
-            let clocks = clock::init();
-            time::init();
-            Peripherals {
+            time::init(clocks);
+            Ok(Peripherals {
                 pins: gpio::Pins::new(),
                 uart0: uart::Uart0Token::new(),
                 i2c: i2c::I2cToken::new(),
@@ -62,7 +80,10 @@ pub fn init() -> Peripherals {
                 pwm3: pwm::PwmToken::new(),
                 pwm4: pwm::PwmToken::new(),
                 clocks,
-            }
+                watchdog: watchdog::WatchdogToken::new(),
+                reset_reason,
+                flash: flash::FlashToken::new(),
+            })
         }
     })
 }

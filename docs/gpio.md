@@ -1,84 +1,80 @@
-# GPIO и async IRQ
+# GPIO and async interrupts
 
-`Input<N>` реализует `embedded_hal::digital::InputPin` и
-`embedded_hal_async::digital::Wait`. Все пять ожиданий используют GPIO IRQ,
-таймерного опроса нет:
+`Input<N>` implements `embedded_hal::digital::InputPin` and
+`embedded_hal_async::digital::Wait`. All five waits use GPIO interrupts, without
+timer polling:
 
 ```rust,ignore
 let mut int_n = p.pins.p16.into_input(bl706_hal::gpio::Pull::Up);
 int_n.wait_for_low().await;
-// Обслужить источник и снять INT_N перед следующим ожиданием low.
+// Service the source and release INT_N before waiting for low again.
 ```
 
-`wait_for_low/high` завершается сразу, если соответствующий уровень уже есть.
-`wait_for_rising_edge/falling_edge/any_edge` ждёт новое событие после настройки
-детектора на первом poll; старый pending очищается. События до arming не сохраняются.
-`Wait` возвращает `Infallible`; каждый `Input` допускает одно ожидание благодаря
-`&mut self` и исключительному владению пином.
+Low/high waits finish immediately if the level is already active. Rising/falling/
+any-edge waits require a new event after detector arming on the first poll; stale
+pending bits are cleared. Pre-arming events are not retained. `Wait` returns
+`Infallible`; `&mut self` and exclusive pin ownership allow one waiter per input.
 
-## Схема Embassy
+## Embassy pattern
 
-Сверено с Embassy commit `4c0da6097c5b3ce078473016d7c4654f90693afa`:
+Compared with Embassy commit `4c0da6097c5b3ce078473016d7c4654f90693afa`:
 
 - [embassy-rp GPIO](https://github.com/embassy-rs/embassy/blob/4c0da6097c5b3ce078473016d7c4654f90693afa/embassy-rp/src/gpio.rs):
-  waker на пин, очистка старых edges перед arming, ISR маскирует источник и будит task.
+  per-pin wakers, stale edge clearing before arming, ISR masking and task wakeup.
 - [embassy-stm32 EXTI](https://github.com/embassy-rs/embassy/blob/4c0da6097c5b3ce078473016d7c4654f90693afa/embassy-stm32/src/exti/mod.rs):
-  per-line wakers, one-shot masking, cancel cleanup. Отдельный ExtiInput нужен STM32
-  из-за разделяемых EXTI channels между портами. В BL706 такой межпортовой
-  конкуренции нет, поэтому ожидания встроены прямо в `Input`, как у RP.
+  per-line wakers, one-shot masking and cancellation cleanup. STM32 needs separate
+  ExtiInput because ports share EXTI channels. BL706 has no such cross-port
+  contention, so waits are part of `Input`, as in RP.
 
-Здесь per-pin wakers и битовые `armed/complete` находятся в статической памяти
-под одной critical section. ISR не хранит указателей на `Input` или future.
-Регистрация waker и проверка completion сериализованы с ISR; событие до регистрации
-waker остаётся в completion. Сработавшие пины маскируются **в обоих детекторах**,
-статус очищается, затем их wakers извлекаются и вызываются вне заимствования state.
-Один IRQ может завершить несколько независимых ожиданий.
+Per-pin wakers and `armed/complete` bitsets live in static memory under one critical
+section. No Input/future pointer reaches the ISR. Waker registration and completion
+checks are serialized with the ISR; an early event remains latched. Triggered pins
+are masked in **both detectors**, status is cleared and wakers are extracted before
+being called outside the state borrow. One IRQ can complete several independent waits.
 
-Drop future (включая `with_timeout`/select) маскирует оба детектора этого пина,
-очищает pending/completion и освобождает waker. Другие GPIO продолжают ждать.
-Drop самого `Input` делает ту же очистку. Забытый future не оставляет висячих
-указателей: ожидание остаётся вооружённым до события, повторного arming или drop Input.
-На событии оно одноразово маскируется. Повторный wait очищает его старое состояние.
+Future Drop, including timeout/select, masks both detectors for that pin, clears
+pending/completion and releases its waker. Other pins keep waiting. Input Drop does
+the same. A forgotten future leaves no dangling pointer; it stays armed until an
+event, rearming or Input Drop. Events mask it once; a new wait clears old state.
 
-## Регистры BL706
+## BL706 registers
 
-Основание: [RM GLB](https://github.com/bouffalolab/bl_docs/blob/665e7daa84b498a767e656f458f26aca3be4fd45/BL702_RM/en/RST/GLB.rst),
-[таблицы регистров](https://github.com/bouffalolab/bl_docs/blob/665e7daa84b498a767e656f458f26aca3be4fd45/BL702_RM/en/RST/glb_register.rst),
+Sources: [RM GLB](https://github.com/bouffalolab/bl_docs/blob/665e7daa84b498a767e656f458f26aca3be4fd45/BL702_RM/en/RST/GLB.rst),
+[register tables](https://github.com/bouffalolab/bl_docs/blob/665e7daa84b498a767e656f458f26aca3be4fd45/BL702_RM/en/RST/glb_register.rst),
 [SDK GLB](https://github.com/bouffalolab/bouffalo_sdk/blob/237ed937856bf435f4f3642ea4728294723e1d87/drivers/soc/bl702/std/src/bl702_glb.c)
-(`GLB_Set_GPIO_Int[2]Mod`, `GPIO_INT0_IRQHandler`) и
+(`GLB_Set_GPIO_Int[2]Mod`, `GPIO_INT0_IRQHandler`) and
 [LHAL GPIO](https://github.com/bouffalolab/bouffalo_sdk/blob/237ed937856bf435f4f3642ea4728294723e1d87/drivers/lhal/src/bflb_gpio.c).
 
-- Общий CLIC source `GPIO_INT0`: 16 + 44 = **60**, vector/dispatcher установлен HAL.
-  HAL init маскирует все GPIO-источники, очищает оба детектора и включает CLIC line.
-  Глобальный MIE по-прежнему включает приложение после init.
-- Первый детектор: MASK `0x1a0`, STAT `0x1a8`, CLR `0x1b0`, MODE `0x1c0..0x1cc`.
-  Второй: MASK `0x1d0`, STAT `0x1d4`, CLR `0x1d8`, MODE `0x1dc..0x1e8`.
-  MASK=1 запрещает источник. Оба STAT RO. Оба CLR RW, SDK пульсирует 1 → 0;
-  PAC исправлен соответственно, это не W1C.
-- По десять **логических** GPIO на MODE word, три бита на пин. RMW под CS сохраняет
-  соседние конфигурации. SF/PSRAM remap относится к pad config, не к номеру IRQ bit.
-- Выбран SDK async control: falling=4, rising=5, low=6, high=7.
-  `any_edge` включает rising в первом и falling во втором детекторе. SDK ISR
-  обслуживает оба STAT в одном GPIO_INT0. Их независимость и маршрутизация ещё
-  требуют аппаратной проверки. Полярность после чтения уровня не переключается.
-- Для level wait есть повторное чтение уровня после unmask. ISR сначала маскирует
-  источник, поэтому удерживаемый low/high не должен создавать IRQ storm.
+- Shared CLIC source `GPIO_INT0` is 16+44 = **60**. HAL installs its vector/dispatcher,
+  masks all GPIO sources, clears both detectors and enables the CLIC line at init.
+  The application still enables global MIE afterward.
+- Detector 1: MASK `0x1a0`, STAT `0x1a8`, CLR `0x1b0`, MODE `0x1c0..0x1cc`.
+  Detector 2: MASK `0x1d0`, STAT `0x1d4`, CLR `0x1d8`, MODE `0x1dc..0x1e8`.
+  MASK=1 disables the source; both STAT registers are RO. CLR is RW and pulsed
+  1→0 by the SDK, not W1C; the PAC annotations reflect this.
+- Ten logical GPIOs per MODE word, three bits per pin. RMW under a critical section
+  preserves neighbors. SF/PSRAM remap affects pad config, not IRQ bit numbering.
+- SDK async modes are falling=4, rising=5, low=6, high=7. Any-edge uses rising in
+  detector 1 and falling in detector 2. SDK ISR services both STAT registers in
+  GPIO_INT0; their independence/routing still require hardware confirmation.
+  The driver does not switch polarity based on a sampled level.
+- Level waits recheck the level after unmasking. The ISR masks first, so a sustained
+  low/high should not cause an IRQ storm.
 
-## Границы проверки
+## Validation limits
 
-Семь host-тестов исполняют production state engine с моделью регистров: все 32
-mode fields, направления edges, latched completion до poll, уже активные levels,
-гонка level/unmask, оба детектора, несколько пинов, cancel/stale IRQ/rearm.
-Модель не исполняет target MMIO/waker/future Drop glue и не доказывает электрическую работу GPIO, длительность CLR pulse, аппаратную
-latency, минимальную ширину импульса или фактический возврат из IRQ 60.
+Seven host tests run the production state engine with modeled registers: all 32
+mode fields, edge directions, early latched completion, active levels, level/unmask
+races, both detectors, multiple pins, cancel/stale IRQ/rearm. They do not execute
+target MMIO/waker/future Drop glue or prove electrical GPIO operation, CLR pulse
+width, latency, minimum input pulse width or return from IRQ60.
 
-Это одноразовое уведомление, не счётчик всех фронтов. Импульсы между ожиданиями
-теряются; дребезг не фильтруется программно. Async control не обещает deep-sleep
-wakeup: executor пока активный, HBN/PDS GPIO wakeup не реализован.
+This is one-shot notification, not an edge counter. Pulses between waits are lost
+and software debounce is absent. Async control does not imply deep-sleep wakeup:
+the executor spins and HBN/PDS GPIO wakeup is unimplemented.
 
-Пример `gpio_irq`: GPIO25 any-edge + timeout/rearm, GPIO28 rising/falling,
-GPIO16 FUSB302 low/high и независимый UART/timer reporter. Он наблюдает INT_N,
-но не очищает FUSB302 interrupt registers и не реализует PD policy. Если INT_N
-застрял low, task остаётся на `wait_for_high`, остальные задачи продолжают работать.
-Без debounce счётчики кнопок могут увеличиваться несколько раз за нажатие.
-На плате пример ещё не запускался; порядок проверки см. [hardware.md](hardware.md).
+`gpio_irq` demonstrates GPIO25 any-edge with timeout/rearm, GPIO28 rising/falling,
+GPIO16 FUSB302 low/high and an independent UART/timer reporter. It observes INT_N
+without clearing FUSB302 interrupt registers or implementing PD policy. A stuck-low
+INT_N leaves that task waiting for high while others continue. Button bounce can
+increment counts repeatedly. The example has not run on hardware; see [the checklist](hardware.md).

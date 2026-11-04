@@ -85,13 +85,12 @@ impl I2c {
     /// GPIO10=SCL and GPIO11=SDA per RM/SDK alternate function 6. IronOS's
     /// Pins.h labels these in reverse; see docs/hardware.md. External pull-ups.
     /// Initial bring-up uses nominal 100 kHz, with SCL sync (clock stretching).
-    pub fn new(token: I2cToken, scl: Pin<10>, sda: Pin<11>, _clocks: Clocks) -> Self {
+    pub fn new(token: I2cToken, scl: Pin<10>, sda: Pin<11>, clocks: Clocks) -> Self {
         scl.configure(6, Pull::None, true);
         sda.configure(6, Pull::None, true);
         abort();
-        // SDK's simple equal-phase model. 32MHz/(4*(79+1)) = 100kHz before
-        // synchronizer delay. Validate actual rate and tLOW/tHIGH on hardware.
-        let period = 79 * 0x0101_0101;
+        // SDK equal-phase model, rounded conservatively to <=100kHz before sync delay.
+        let period = u32::from(clocks.i2c_phase()) * 0x0101_0101;
         pac::I2C.i2c_prd_start().write(|r| r.0 = period);
         pac::I2C.i2c_prd_stop().write(|r| r.0 = period);
         pac::I2C.i2c_prd_data().write(|r| r.0 = period);

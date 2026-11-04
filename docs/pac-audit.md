@@ -1,91 +1,91 @@
-# PAC: сравнение и границы аудита
+# PAC comparison and audit boundaries
 
-Генерация: официальный `soc702_reg.svd` → `patch_svd.py` → chiptool →
-`finish_pac.py` → rustfmt. Все версии входов сохранены; SHA и pinned links в [sources](sources.md).
+Generation: official `soc702_reg.svd` → `patch_svd.py` → chiptool → `finish_pac.py`
+→ rustfmt. All inputs are preserved; hashes and pinned links are in [sources](sources.md).
 
-## Что изменено у andelf
+## andelf changes
 
-Машиночитаемый результат: [svd-comparison.json](svd-comparison.json).
-`tools/check_svd.py` сравнивает XML по именам, нормализует числовые записи и исключает
-пустые XML-узлы из семантического сравнения.
+Machine-readable results: [svd-comparison.json](svd-comparison.json).
+`tools/check_svd.py` compares XML by name, normalizes numbers and excludes empty XML
+nodes from semantic comparison.
 
-Между официальным SVD и исходным andelf:
+Compared with the official input, andelf's source SVD:
 
-- добавлен RF-блок с 141 регистром на `0x40001000`;
-- удалён неполный `<cpu>`; изменены имя, vendor/description и добавлена версия;
-- пустая база AON заменена на `0x4000F000`;
-- остальная карта регистров совпадает. В частности, неверные базы DMA/KYS сохранены.
+- Adds an RF block with 141 registers at `0x40001000`.
+- Removes the incomplete CPU entry, changes name/vendor/description and adds a version.
+- Sets the empty AON base to `0x4000F000`.
+- Otherwise retains the map, including incorrect DMA/KYS bases.
 
-YAML-патч andelf заменяет два 16-битных поля `cgen_cfg1` 32 именованными gates,
-меняет описания блоков. Числовые и пустые XML-узлы дополнительно переформатированы svdtools.
-GPIO arrays в YAML **закомментированы**, поэтому не являются применённым исправлением.
-Патч descriptions для AON/HBN не проявляется в результате: source names имеют верхний регистр,
-а YAML использует нижний. Сравнивается и YAML, и фактический `.svd.patched`.
+The YAML replaces two 16-bit `cgen_cfg1` fields with 32 named gates and changes block
+descriptions. svdtools also reformats numbers/empty nodes. GPIO arrays are commented
+out, so they are not applied corrections. AON/HBN description patches do not appear
+in the result because source names are uppercase while YAML uses lowercase.
+Both YAML and actual `.svd.patched` output are compared.
 
-## Принятые исправления
+## Accepted corrections
 
-| Исправление | Основание | Проверка |
+| Correction | Basis | Check |
 |---|---|---|
-| Имя BL706, версия, удаление неполного CPU | chiptool/svd parser отвергает CPU без revision; ISA берётся из Rust target, не этого XML | parsing/generation |
-| AON `0x4000F000` | SDK `bl702.h` AON_BASE, register offsets внутри блока | совпадает с andelf и SDK |
-| DMA `0x40007000` → `0x4000C000` | RM §1 memory map; SDK DMA_BASE | XML assert + PAC const |
-| KYS `0x4000AB00` → `0x4000A900` | RM memory map, SDK KYS_BASE | XML assert + PAC const |
-| UART1 `0x4000A100`, QDEC1/2 `0x4000A840/880` | RM memory map и SDK | одинаковая layout с исходным экземпляром |
-| UART0/1/I²C/GPIO IRQ 45/46/48/60 | SDK IRQ_NUM_BASE=16; RM источники 29/30/32/44 | XML, HAL CLIC map |
-| cgen_cfg1 gates UART0=16, UART1=17, SPI=18, I²C=19, PWM=20, TIMER=21, IR=22 | SDK `GLB_AHB_Get_Clock` / `UnGate` | именованные setters, XML asserts |
-| GPIO input и оба IRQ status RO, оба GPIO clear RW; I²C FIFO data RO/WO; UART status/RX RO, TX/clear WO | RM register access, SDK headers | типы `Reg<...,R/RW/W>` |
-| ADC FIFO/results RO; TIMER count/status RO, interrupt clear WO; IRQ ADC/PWM/TIMER0/1=25/49/52/53 | RM ADC/TIMER tables, SDK IRQ +16 | XML access/base/IRQ assertions, generated PAC |
+| BL706 name/version, remove incomplete CPU | chiptool/parser rejects CPU without revision; Rust target supplies ISA | Parsing/generation |
+| AON `0x4000F000` | SDK AON_BASE and internal offsets | Matches andelf/SDK |
+| DMA `0x40007000` → `0x4000C000` | RM memory map, SDK DMA_BASE | XML and PAC const |
+| KYS `0x4000AB00` → `0x4000A900` | RM memory map, SDK KYS_BASE | XML and PAC const |
+| UART1 `0x4000A100`, QDEC1/2 `0x4000A840/880` | RM/SDK | Reuse instance layout |
+| UART0/1/I²C/GPIO IRQ 45/46/48/60 | SDK IRQ_NUM_BASE=16, RM sources29/30/32/44 | XML and HAL CLIC map |
+| cgen_cfg1 UART0=16, UART1=17, SPI=18, I²C=19, PWM=20, TIMER=21, IR=22 | SDK clock/ungate code | Named setters, XML assertions |
+| GPIO input/status RO, both clear RW; I²C FIFO RO/WO; UART status/RX RO, TX/clear WO | RM access tables, SDK headers | Generated R/RW/W types |
+| ADC FIFO/results RO; TIMER count/status RO, interrupt clear WO; ADC/PWM/TIMER0/1 IRQ25/49/52/53 | RM ADC/TIMER, SDK IRQ+16 | Access/base/IRQ assertions |
+| Watchdog WVR RO, WCR/WFAR/WSAR WO | RM TIMER register access | XML assertions and generated PAC |
 
-Остальные gates сохранены сгруппированными. У andelf KYS обозначен bit25, тогда как
-современный SDK использует bit27; bits24–26 связаны также с QDEC/I²S. Без нужды для
-минимального HAL эти поля не переименованы и не используются. `MAX` bit31 и описания
-`CCI/L1C (...efuse?)` не перенесены как достоверные аппаратные факты.
+Other gates remain grouped. andelf names KYS bit25 while modern SDK uses bit27;
+bits24..26 also involve QDEC/I²S. They are not renamed or used by this HAL. The
+`MAX` bit31 and speculative `CCI/L1C (...efuse?)` descriptions are not imported as
+verified facts. RF is not imported: it is a substantial addition without a
+manufacturer specification verified here. The official SVD remains the generation input.
 
-RF из andelf не импортирован: это существенное дополнение без проверенной здесь
-происходящей от производителя спецификации. Его наличие в andelf не подтверждает
-корректность каждого поля. Исходный официальный SVD остаётся источником генерации.
+## Reviewed HAL paths
 
-## Проверенные пути HAL
+- GLB/HBN clock roots, dividers, UART/I²C/mtime muxes, AON XTAL and DLL sequencing,
+  RC32K power/selection, IROM2T and ITCM BCLK latch paths compared with SDK.
+- Watchdog protected accesses, reset mode and shared TIMER fields; HBN reset flags
+  and GLB system+CPU reset. See [system.md](system.md).
+- Packed GPIO configuration: two pads per word, IE/SMT/pull/function, data/OE
+  offsets `0x180/188/190` and GPIO23..28 SF/PSRAM pad remapping.
+- Both GPIO MASK/STAT/CLR/MODE banks, IRQ60, async modes4..7 and packed three-bit
+  fields. GPIO_INT_CLR1's earlier WO annotation was corrected to RW per RM and SDK
+  1→0 pulse; second STAT is RO. One-shot masking, clear and cancellation are
+  documented in [gpio.md](gpio.md).
+- UART0 divider, free-run, 8N1, FIFO counts, data and signal mux.
+- ADC GPIP/AON clock/divider, PGA/chop/resolution/scan, FIFO tags/W1C and read-only
+  gain trim at EF_DATA_0 shadow+0x78, parity/sign conversion. GPIP bit2 and EF_CTRL
+  bit7 match SDK ungate code. No eFuse programming.
+- Five PWM layouts at stride0x20, BCLK/divider/period/threshold/SW force/STOP and
+  shared interrupt clear pulse with channel-local enables. TIMER shared fields,
+  three compares/channel, preload and IRQ clear. TCVWR remains RW despite RM RO:
+  SDK writes1 then reads three times for capture. SDK compare-minus-two is not
+  silently applied. See [analog.md](analog.md).
+- I²C packet/sub-address lengths N−1, LSB-first sub-address, repeated START, two-word
+  FIFO and mixed END/NAK/ARB/FIFO error/mask/enable/W1C register. ISR buffer service
+  avoids echoing W1C while changing masks. See [i2c.md](i2c.md).
+- SF_CTRL SAHB owner/clock/command/address/length/TRIG/BUSY and 256-byte SRAM path,
+  compared with old SDK SFlash/SF_CTRL code. Only the narrow RAM-only SPI1-1-1 path
+  is implemented; no complete flash configuration/XIP protocol. See [flash.md](flash.md).
+- Core-local CLIC/mtime are absent from the SVD. Addresses come from SDK e24/clic.h
+  and were compared with the SiFive manual. This is a small handwritten HAL layer.
 
-- `GLB_CLK_CFG0/2/3`, HBN_GLB root/UART selection и `CPU_CLK_CFG`: сравнение с
-  `GLB_Set_System_CLK[_Div]`, `GLB_Set_UART_CLK`, `GLB_Set_I2C_CLK`, `GLB_Set_MTimer_CLK`.
-- GPIO packed config: два pad на word, IE/SMT/pull/func; data и OE offsets
-  `0x180/188/190`; SF/PSRAM pad remapping для GPIO23..28 по `GPIO_USE_PSRAM__IO`.
-- GPIO IRQ: оба MASK/STAT/CLR/MODE banks, общий IRQ 60, async modes 4..7,
-  packed 3-bit fields. Исправлена прежняя неточная WO-аннотация GPIO_INT_CLR1:
-  по RM это RW-регистр, SDK делает pulse 1 → 0. Второй STAT теперь RO.
-  Ожидания one-shot, ISR mask-before-clear, cancel/rearm. См. [gpio.md](gpio.md).
-- UART0: divider, free-run, 8N1, FIFO count и byte data, signal mux.
-- ADC GPIP/AON: clock XCLK/divider, PGA/chop/resolution/scan, FIFO tags и W1C;
-  read-only путь gain trim из EF_DATA_0 shadow +0x78, parity/sign conversion.
-  GPIP gate bit2 и EF_CTRL bit7 сверены с SDK UnGate. Программирование eFuse не используется.
-- PWM: пять layouts с шагом0x20, BCLK/divider/period/threshold/SW force/STOP,
-  общий interrupt clear pulse и channel-local enable. TIMER: два канала с тремя
-  compare, shared source/divider/enable/mode, preload и IRQ clear.
-  TCVWR оставлен RW: RM говорит RO, SDK делает write1 + три read для capture.
-  Compare-minus-two из SDK init не применяется автоматически. Подробности [analog.md](analog.md).
-- I²C: packet length **N−1**, sub-address **N−1** и LSB-first, repeated START,
-  FIFO **два 32-битных слова**, END/NAK/ARB/FIFO error и mask/enable/W1C в одном регистре.
-  FIFO обслуживается из ISR через внутренний packet buffer; mixed status/control
-  поля не очищаются при переустановке masks. См. [i2c.md](i2c.md).
-- Core-local CLIC/mtime отсутствуют в SVD. Адреса берутся из SDK `e24/clic.h`
-  и сверены с SiFive manual. Это небольшой ручной слой HAL, не выдаваемый за SVD-генерацию.
+## What is not established
 
-## Что не утверждается
+This is not a complete SoC PAC audit. DMA channels, crypto, eFuse writes, USB, RF,
+camera/MJPEG and the remaining flash/XIP configuration were not fully checked.
+An accessor does not establish availability on a particular package/BL706 variant.
+In particular, source SVD entries for MJPEG and ef_data_1 are not verified Pinecil features.
 
-Это не полный аудит всего SoC PAC. DMA channels, crypto, запись eFuse, USB, RF,
-camera/MJPEG и flash controller в HAL не используются; их поля и reset values
-полностью не сверялись. Наличие аксессора не подтверждает применимость блока к
-конкретному package/варианту BL706. В частности, исходный SVD содержит MJPEG и ef_data_1,
-которые нельзя считать проверенными функциями Pinecil.
+Many source registers inherit RW and global reset=0 despite mixed access or nonzero
+silicon defaults. Only listed paths have corrected access. chiptool fieldset Default
+is zero, not a silicon-reset guarantee. Do not use generic RMW on mixed status/control;
+I²C unmask writes explicitly keep W1C zero.
 
-Многие source registers наследуют RW и глобальный reset=0, даже если реальные
-поля имеют смешанные права/ненулевые reset values. Исправлены access только у
-перечисленных путей. `Default` fieldset chiptool равен нулю, а не обещанному silicon reset.
-Для mixed status/control I²C HAL использует явные записи с нулевыми W1C при unmask;
-универсальный read-modify-write таких регистров применять нельзя.
-
-Upstream chiptool генерирует Cortex-M InterruptNumber и vector glue даже для RISC-V.
-Скрипт удаляет именно этот glue с assertions количества совпадений. Enum IRQ и MMIO
-остаются сгенерированными. CLIC runtime реализован отдельно. Изменение формата
-chiptool потребует явного обновления скрипта, а не молчаливого regex-пропуска.
+chiptool emits Cortex-M InterruptNumber/vector glue even for RISC-V. The finishing
+script removes precisely that glue with match-count assertions, retaining generated
+IRQ enums/MMIO. The CLIC runtime is separate. A changed generator format requires
+an explicit script update, rather than silently skipped regex matches.

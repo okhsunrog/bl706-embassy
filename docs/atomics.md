@@ -1,71 +1,68 @@
-# Атомики, LR/SC и FPU
+# Atomics, LR/SC and FPU
 
-## Вывод для текущей реализации
+## Production target decision
 
-**Не использовать Rust target с `A` для обычной прошивки BL706.**
-Применяются IMC или IMFC; critical section сохраняет и восстанавливает MIE,
-а `portable-atomic/critical-section` даёт программный fallback. Это атомарность
-относительно maskable IRQ одного hart, не синхронизация с DMA, NMI или отладчиком.
+**Do not use a Rust target with A for normal BL706 firmware.** Use IMC or IMFC.
+Critical sections save/restore MIE and `portable-atomic/critical-section` provides
+a software fallback. This is atomic relative to maskable IRQs on one hart, not
+synchronization with DMA, NMI or a debugger.
 
-Наличие `A` в `misa` недостаточно для LLVM CAS. `compare_exchange` обычно требует
-LR/SC; RMW может требовать AMO. Установка feature `critical-section` на A-target
-сама по себе не заставляет все зависимости отказаться от аппаратных атомиков.
-Также недостаточно передать `-C target-feature=-a` приложению поверх готового
-`core` от `riscv32imafc`: target cfg, ABI и ранее собранные библиотеки остаются проблемой.
+`misa.A` alone is insufficient for LLVM CAS. `compare_exchange` commonly requires
+LR/SC; RMW may require AMO. Enabling a `critical-section` feature on an A target does
+not force every dependency to avoid hardware atomics. Passing `-C target-feature=-a`
+to an application over a prebuilt `riscv32imafc` core is also insufficient: target
+cfg, ABI and previously built libraries remain relevant.
 
-## Доказательства и неопределённость
+## Evidence and uncertainty
 
-| Факт | Что он означает |
+| Evidence | Interpretation |
 |---|---|
-| Официальный SVD описывает RV32IMAFC | Маркетинговая/генераторная metadata, не гарантия работы каждой A-инструкции на каждом адресе |
-| [SiFive E24 21G3.02.00](https://sifive.cdn.prismic.io/sifive/dc408861-94ce-4d82-a704-caddec98609d_e24_core_complex_manual_21G3.pdf), §3.5, printed p26 / PDF p28 | LR/SC отсутствуют и дают illegal instruction; AMO зависят от memory port; System Port AMO дают access exception |
-| [Обсуждение на форуме Bouffalo](https://bbs.bouffalolab.com/d/133-atomic-memory-operations) | Для BL702 сообщается AMO fault на RAM 0x42020000 и других 0x22/0x42 aliases, при этом `misa.A` установлен; ответ подтверждает отсутствие atomic access по шине |
-| Конкретный BL706 не исследован на железе | Ревизия SiFive и соответствие ему manual 21G3 неизвестны. Это основание для консервативного target, а не измеренный результат BL706 |
+| Official SVD says RV32IMAFC | Generator/marketing metadata, not a guarantee of each A instruction at every address |
+| [SiFive E24 21G3.02.00](https://sifive.cdn.prismic.io/sifive/dc408861-94ce-4d82-a704-caddec98609d_e24_core_complex_manual_21G3.pdf), §3.5, printed p26 / PDF p28 | LR/SC are absent and raise illegal instruction; AMO support depends on the memory port; System Port AMOs raise access exceptions |
+| [Bouffalo forum discussion](https://bbs.bouffalolab.com/d/133-atomic-memory-operations) | Reports BL702 AMO faults on RAM 0x42020000 and other 0x22/0x42 aliases despite `misa.A`; the reply confirms unsupported bus atomic accesses |
+| No BL706 hardware investigation | Its SiFive revision and applicability of manual 21G3 are unknown. The target choice is conservative, not a measured BL706 result |
 
-Нельзя переносить успех AMO на `mtimecmp` из forum report на RAM и нельзя делать
-такую проверку частью обычного приложения: запись comparator меняет работу таймера.
-Не следует также переносить на BL706 свойства SiFive U74/S7 или Xuantie E907.
+The forum's successful AMO on `mtimecmp` cannot be generalized to RAM and must not
+become a normal application test: writing the comparator changes timer operation.
+Do not transfer properties of SiFive U74/S7 or Xuantie E907 to BL706.
 
-При гипотетической поддержке LR/SC результат SC=0 означает успех, ненулевой результат
-означает неуспех. Многократный SC failure не доказывает неисправность. Но бесконечный
-CAS retry loop непригоден как первичная диагностика. Успех одной операции не доказывает
-reservation invalidation, работу при IRQ/DMA, поддержку aliases или forward progress.
+If LR/SC were supported, SC=0 would mean success and nonzero failure. Repeated SC
+failure alone would not prove a fault. An infinite CAS retry loop is unsuitable as
+an initial diagnostic. One success establishes neither reservation invalidation,
+IRQ/DMA behavior, alias support nor forward progress.
 
-## Диагностический пример
+## Isolated diagnostic
 
-`atomics` запускается отдельно с feature `atomic-probe` и IMC target:
+Build `atomics` separately with `atomic-probe` and the IMC target. It:
 
-1. Печатает `misa`, `marchid`, `mimpid` и адрес собственной выровненной `PROBE_WORD` в OCRAM.
-2. Отключает maskable IRQ; выполняет одну LR/SC пару, без retry loop.
-3. Выполняет один AMOADD на той же собственной RAM-переменной.
-4. Печатает return code, значение word и trap record после каждой пробы.
+1. Prints `misa`, `marchid`, `mimpid` and its own aligned OCRAM `PROBE_WORD` address.
+2. Disables maskable IRQs and executes one LR/SC pair, with no retry loop.
+3. Executes one AMOADD on the same owned RAM word.
+4. Prints return codes, word contents and trap records after the probes.
 
-Exception handler восстанавливается только при cause 2/5/7 на **одном из трёх
-точных адресов probe-инструкций**. Другие исключения останавливаются.
-Он перенаправляет `mepc` в failure continuation целой assembly-функции;
-не выполняет произвольное `mepc += 4` и не маскирует произвольные сбои.
-Инструкция, которая аппаратно зависла без trap, этим механизмом не исправляется;
-нужны отладчик и возможность reset.
+The exception handler recovers only causes 2/5/7 at **three exact probe instruction
+addresses**. All other exceptions stop. It redirects `mepc` to the whole assembly
+function's failure continuation; it does not blindly add four or suppress unrelated
+faults. Hardware hanging without a trap still requires a debugger/reset.
 
-Тест касается только собственной word на используемом alias OCRAM. ITCM, другие
-RAM aliases, DMA и IRQ-инвалидация reservation остаются отдельными исследованиями.
-Пока ни одна проба не запускалась на устройстве.
+The probes cover only the owned word and chosen OCRAM alias. ITCM, other RAM aliases,
+DMA and IRQ reservation invalidation are separate investigations. No probe has run
+on a device.
 
-`audit_elf.py` проверяет executable instruction encodings, включая инструкции,
-которые objdump без `+a` может показать как unknown. Во всех обычных ELF A-opcodes
-должны отсутствовать. В `atomics` разрешены ровно три адреса с известными labels.
+`audit_elf.py` checks executable instruction encodings, including A instructions
+that objdump without `+a` may show as unknown. Normal ELF files must contain none.
+Only the three labelled instruction addresses are allowed in `atomics`.
 
 ## FPU
 
-FPU поддерживается отдельной IMFC-сборкой с ilp32f ABI. Target встроен в закреплённый
-nightly, но не имеет готового rust-std; используется `-Zbuild-std=core`.
-В startup до первого Rust-вызова устанавливается `mstatus.FS=Dirty` и обнуляется `fcsr`.
-Каждый ненестированный IRQ сохраняет f0..f31 и fcsr, восстанавливает их и mstatus
-перед `mret`. Frame 224 байта выровнен на 16; stack зарезервирован 8 KiB.
-Программного переключения FP-контекста между preemptive tasks нет: executor cooperative.
+The separate IMFC build uses ilp32f ABI. The pinned nightly has the built-in target
+but no prebuilt rust-std, so `-Zbuild-std=core` is used. Startup sets
+`mstatus.FS=Dirty` and clears `fcsr` before the first Rust call. Each nonnested IRQ
+saves/restores f0..f31, fcsr and mstatus before `mret`. The 224-byte frame is
+16-byte aligned; the stack reservation is 8 KiB. There is no preemptive task FP
+context switch: the executor is cooperative.
 
-Пример `fpu` выполняет runtime f32-вычисление и проверяет битовый результат 3.25,
-показывает FS/fcsr и использует Embassy Timer. Сам по себе он ещё не доказывает
-сохранность всех FPR при IRQ: необходим отдельный register-sentinel тест под отладчиком.
-Локальный ELF-аудит проверяет присутствие spills/reloads всех 32 FPR и float ABI,
-но аппаратную работу FPU и обработчиков это не подтверждает.
+`fpu` computes a runtime f32 result, checks the bits for 3.25, reports FS/fcsr and
+uses an Embassy Timer. It does not prove preservation of every FPR across IRQs;
+a debugger-driven register-sentinel test is still required. ELF checks verify all
+32 FPR spills/reloads and the float ABI, not physical FPU/handler operation.

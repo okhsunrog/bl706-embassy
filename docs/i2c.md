@@ -1,61 +1,59 @@
-# I²C: FIFO в ISR
+# I²C: servicing the FIFO in the ISR
 
-BL70x имеет RX/TX FIFO глубиной два 32-битных слова. При выбранном threshold=0
-готовность FIFO должна обслуживаться без ожидания следующего `poll` Embassy task.
-Длительная работа другой cooperative task, в том числе UART logging, не должна
-останавливать передачу данных между контроллером и памятью драйвера.
+BL70x RX/TX FIFOs hold two 32-bit words. With threshold=0, FIFO readiness must be
+serviced without waiting for the next Embassy task poll. A long cooperative task,
+including UART logging, must not stop transfers between the controller and driver
+memory.
 
-## Владение и ход передачи
+## Ownership and transfer flow
 
-Драйвер имеет один статический packet buffer на 256 байт и состояние
-`Idle → Active → Complete(Result)`. Всё состояние защищено single-hart critical section.
-Ни указатели, ни ссылки на буферы вызывающего кода не передаются в ISR.
+One static 256-byte packet buffer and `Idle → Active → Complete(Result)` state
+are protected by a single-hart critical section. The ISR retains no references or
+pointers to caller buffers.
 
-1. В critical section проверяются программная занятость и BUS_BUSY, контроллер
-   очищается, настраиваются packet length/sub-address/direction.
-2. TX копируется во внутренний буфер, до START загружаются максимум два слова.
-   Для RX задаётся ожидаемая длина. Устанавливаются masks, включаются CLIC и master.
-3. ISR обслуживает до двух FIFO words за вход. Он маскирует FIFO-ready, когда все
-   байты уже переданы в TX FIFO или извлечены из RX, оставляя END/error IRQ.
-4. Ошибка имеет приоритет над END. При завершении ISR отключает CLIC/controller,
-   очищает status/FIFO, публикует результат и будит задачу. Промежуточные FIFO IRQ
-   не вызывают `wake()` и не требуют опроса future.
-5. Future регистрирует waker и проверяет сохранённый результат. Успешный RX целиком
-   копируется во внешний буфер; при ошибке/отмене внешний RX-буфер не меняется.
+1. Under the critical section, check software ownership and BUS_BUSY, clean the
+   controller and configure packet length/sub-address/direction.
+2. Copy TX into internal storage and preload at most two words before START.
+   For RX, set the expected length. Configure masks, enable CLIC and master.
+3. Service at most two FIFO words per ISR entry. Mask FIFO-ready once all bytes
+   have entered TX FIFO or left RX FIFO, keeping END/error enabled.
+4. Errors take precedence over END. On completion, disable CLIC/controller, clear
+   status/FIFO, publish the result and wake the task. Intermediate FIFO IRQs do
+   not wake the task or require future polls.
+5. The future registers its waker and checks the stored result. Copy successful
+   RX into the caller buffer in full; leave that buffer unchanged on error/cancel.
 
-IRQ, завершивший передачу до первого poll waiter, не теряется: результат остаётся
-в состоянии Complete. END, возникший между проверкой RX FIFO и повторным чтением
-status, оставляется активным для следующего bounded IRQ, чтобы извлечь последний
-word без ложного ShortTransfer.
+Completion before the waiter's first poll remains latched. END arriving between
+an RX FIFO check and the next status read stays enabled for another bounded IRQ,
+allowing the final word to be drained without a false `ShortTransfer`.
 
-## Отмена и забытая future
+## Cancellation and forgotten futures
 
-Drop guard и timeout очищают контроллер и переводят состояние в Idle в одной
-critical section. Pending IRQ после этого не обращается к данным передачи.
-Завершённая аппаратная операция также останавливается непосредственно в ISR,
-даже если задача ещё долго не опрашивается.
+Drop guard and timeout clean the controller and return to Idle in one critical
+section. A stale pending IRQ cannot access old transfer data. Hardware completion
+also stops the controller directly in the ISR, even if the task is not polled.
 
-Drop не гарантирован в safe Rust: future можно забыть через `mem::forget`.
-Поэтому хранить borrowed buffer pointer в ISR и рассчитывать только на Drop guard
-было бы недостаточно. С внутренним packet buffer ISR не получает доступа к уже
-освобождённой или повторно использованной памяти вызывающего кода. Если забытая
-передача ещё Active, попытка новой передачи возвращает BusBusy; после её
-завершения внутренний буфер можно использовать для новой операции.
+Safe Rust does not guarantee Drop: `mem::forget` can forget a future. A borrowed
+buffer pointer retained by the ISR would therefore be unsafe if protected only by
+a Drop guard. The internal buffer prevents access to freed/reused caller memory.
+A new request returns `BusBusy` while a forgotten transfer is Active; after hardware
+completion, the internal buffer can be reused.
 
-Цена: 256 байт static RAM плюс metadata, TX/RX copy до/после передачи. Packet limit
-1..256 не изменён. Это осознанный вариант без DMA и без zero-copy borrowed state.
+The cost is 256 bytes of static RAM plus metadata and TX/RX copies. Packets remain
+limited to 1..256 bytes. This implementation uses neither DMA nor borrowed zero-copy
+state.
 
-## Проверка
+## Validation
 
-Host-модель запускает тот же transfer engine с двухсловным FIFO. Покрыты TX/RX
-всех длин 1..256 без повторных polls waiter, пустой/полный FIFO, частичные слова,
-END/error races, поздний последний RX word, отмена, stale IRQ и повторный запуск.
+Host tests run the production transfer engine with a two-word FIFO. They cover TX/RX
+for every length 1..256 without repeated waiter polls, empty/full FIFO, partial words,
+END/error races, late final RX words, cancellation, stale IRQ and reuse.
 
-Пример `i2c_latency` читает девять байт FUSB302 (0x01..0x09), после первого Pending
-намеренно блокирует executor внутри poll на 20 ms, сохраняя MIE. Передачу должен
-обслужить ISR. На железе требуется проверить `stalled=true`, успешное завершение,
-данные и I²C analyzer trace. Этот пример пока только собран, не запущен на плате.
+`i2c_latency` reads nine FUSB302 bytes at 0x01..0x09. After its first Pending, it
+intentionally blocks inside poll for 20 ms with MIE enabled. The ISR must advance
+the transfer. Hardware validation must check `stalled=true`, success, data and the
+analyzer trace. The example has only been compiled, never run on a board.
 
-ISR устраняет зависимость FIFO от cooperative scheduling, но не от длительного
-запрета IRQ, других ненестированных обработчиков или аппаратной задержки. Полный
-worst-case interrupt latency и поведение контроллера остаются HIL-проверками.
+The ISR removes dependence on cooperative scheduling, not on long IRQ masking,
+other nonnested handlers or hardware delays. Worst-case latency and controller
+behavior remain hardware tests.

@@ -67,6 +67,8 @@ for p, names, access in [
     ("aon", ["gpadc_reg_status", "gpadc_reg_result", "gpadc_reg_raw_result"], "read-only"),
     ("timer", ["TCR2", "TCR3", "TMSR2", "TMSR3", "TCVSYN2", "TCVSYN3"], "read-only"),
     ("timer", ["TICR2", "TICR3"], "write-only"),
+    ("timer", ["WVR"], "read-only"),
+    ("timer", ["WCR", "WFAR", "WSAR"], "write-only"),
     # RM labels capture as RO, but SDK requests capture by writing 1 and reads three times.
     ("timer", ["TCVWR2", "TCVWR3"], "read-write"),
     ("i2c", ["i2c_fifo_rdata"], "read-only"),

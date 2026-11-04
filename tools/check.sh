@@ -17,6 +17,10 @@ rustc --edition 2024 --test crates/bl706-hal/src/gpio_irq.rs -o "$diagnostics/gp
 "$diagnostics/gpio-irq-tests"
 rustc --edition 2024 --test crates/bl706-hal/src/peripheral_logic.rs -o "$diagnostics/peripheral-tests"
 "$diagnostics/peripheral-tests"
+rustc --edition 2024 --test crates/bl706-hal/src/clock_logic.rs -o "$diagnostics/clock-tests"
+"$diagnostics/clock-tests"
+rustc --edition 2024 --test crates/bl706-hal/src/flash_logic.rs -o "$diagnostics/flash-tests"
+"$diagnostics/flash-tests"
 cargo firmware --locked
 cargo firmware-fpu --locked
 cargo build --locked --release -p pinecil-v2-bringup --bin atomics --features atomic-probe --target riscv32imc-unknown-none-elf

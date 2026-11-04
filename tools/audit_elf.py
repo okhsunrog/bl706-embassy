@@ -37,6 +37,11 @@ def audit(path, fpu=False, probes=False):
     assert syms["__bss_end"] <= syms["__stack_bottom"]
     assert syms["__stack_top"] - syms["__stack_bottom"] == 8192
     assert syms["__stack_top"] <= 0x2202c000
+    for symbol in ("bl706_clock_to_rc32m", "bl706_clock_apply"):
+        assert 0x22010000 <= syms[symbol] < 0x22014000, (path, "clock transition outside ITCM", symbol)
+    if path.name == "flash_probe":
+        for symbol in ("bl706_flash_blocking_read", "bl706_flash_blocking_write", "bl706_flash_blocking_erase", "bl706_flash_async_surface"):
+            assert 0x22020000 <= syms[symbol] < 0x2202c000, (path, "compile-only flash surface missing/outside RAM", symbol)
     # Every load segment has VMA=LMA and stays in explicitly reserved RAM.
     for i in range(phnum):
         kind, _, va, pa, _, memsz, _, _ = struct.unpack_from("<8I", data, phoff+i*phsize)
@@ -88,8 +93,8 @@ def audit(path, fpu=False, probes=False):
 
 if __name__ == "__main__":
     for target, fpu, names in [
-        ("riscv32imc-unknown-none-elf", False, ["heartbeat", "fusb302", "i2c_latency", "gpio_irq", "analog", "sampling"]),
-        ("riscv32imfc-unknown-none-elf", True, ["heartbeat", "fusb302", "i2c_latency", "gpio_irq", "analog", "sampling", "fpu"]),
+        ("riscv32imc-unknown-none-elf", False, ["heartbeat", "fusb302", "i2c_latency", "gpio_irq", "analog", "sampling", "system", "flash_probe"]),
+        ("riscv32imfc-unknown-none-elf", True, ["heartbeat", "fusb302", "i2c_latency", "gpio_irq", "analog", "sampling", "system", "flash_probe", "fpu"]),
     ]:
         for binary in names:
             audit(ROOT/"target"/target/"release"/binary, fpu=fpu)

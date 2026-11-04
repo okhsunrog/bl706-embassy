@@ -215,7 +215,7 @@ pub struct Adc<P: Inputs> {
 impl<P: Inputs> Adc<P> {
     /// Fixed nominal ADC clock: XCLK 32MHz / GLB 4 / ADC 4 = 2MHz maximum.
     /// Analog settings follow Pinecil's PGA x1/chop configuration, not a new precision claim.
-    pub fn new(token: AdcToken, pins: P, _clocks: Clocks, config: Config) -> Self {
+    pub fn new(token: AdcToken, pins: P, clocks: Clocks, config: Config) -> Self {
         critical_section::with(|_| {
             // SDK GLB_AHB_CLOCK_IP_GPIP gate. Preserve all sibling gates.
             pac::GLB.cgen_cfg1().modify(|r| r.0 |= 1 << 2);
@@ -224,7 +224,7 @@ impl<P: Inputs> Adc<P> {
                 .modify(|r| r.set_gpadc_32m_div_en(false));
             pac::GLB.GPADC_32M_SRC_CTRL().modify(|r| {
                 r.set_gpadc_32m_clk_sel(true);
-                r.set_gpadc_32m_clk_div(3);
+                r.set_gpadc_32m_clk_div((clocks.xclk_hz() / 8_000_000 - 1) as u8);
                 r.set_gpadc_32m_div_en(true);
             });
             pac::HBN.HBN_PIR_CFG().modify(|r| r.set_gpadc_cgen(true));

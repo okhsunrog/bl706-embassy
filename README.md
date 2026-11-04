@@ -1,16 +1,21 @@
-# BL706 PAC и Embassy bring-up
+# BL706 PAC and Embassy bring-up
 
-Начальная поддержка Bouffalo Lab BL702/704/706, ориентированная на **Pinecil V2 / BL706**.
-Железо недоступно: ни загрузка, ни UART, ни таймеры, ни I²C пока не проверены на плате.
-Это исследовательская основа, не замена IronOS и не готовая прошивка паяльника.
+Initial Bouffalo Lab BL702/704/706 support, targeting **Pinecil V2 / BL706**.
+Hardware is unavailable: startup, clocks and peripheral drivers have not been tested
+on a board. This is a research foundation, not a replacement for IronOS or a complete
+soldering iron firmware.
 
-В workspace:
+The workspace contains:
 
-- `bl706-pac`: полный набор блоков из официального SVD, генерация **chiptool** с проверяемыми исправлениями. Проверена только часть регистров; границы аудита описаны отдельно.
-- `bl706-hal`: RAM startup, nominal RC32M, GPIO, UART0 TX, CLIC, Embassy executor и time driver, IRQ-driven async I²C/ADC, PWM и TIMER0/1.
-- `examples/pinecil-v2`: heartbeat, чтение FUSB302, GPIO IRQ, ADC/PWM/TIMER и измерительный цикл без нагревателя, проверка задержки executor, FPU и ограниченная диагностика атомиков.
+- `bl706-pac`: the official SVD register blocks, generated with **chiptool** and
+  reproducible corrections. Only the documented subset has been audited.
+- `bl706-hal`: RAM startup, configurable RC/XTAL/DLL clocks, GPIO, UART0 TX, CLIC,
+  Embassy executor/time driver, interrupt-driven async I²C/ADC, PWM, TIMER0/1,
+  watchdog, reset and a RAM-only blocking/async NOR flash driver.
+- `examples/pinecil-v2`: peripheral probes, a sampling cycle with no heater output,
+  clock/watchdog diagnostics, a read-only flash probe, FPU and isolated atomic probes.
 
-## Сборка
+## Build
 
 ```sh
 nix develop
@@ -18,45 +23,44 @@ cargo firmware --locked
 cargo firmware-fpu --locked
 ```
 
-`flake.lock`, `Cargo.lock`, `rust-toolchain.toml` и commit chiptool закреплены.
-Nix предоставляет компилятор, `rust-src`, chiptool, uv, LLVM и OpenOCD.
-Первая сборка скачивает зависимости Cargo; следующие можно запускать с `--offline`.
-Для IMC-примеров есть отдельная изолированная Nix-сборка с vendored Cargo dependencies:
+`flake.lock`, `Cargo.lock`, `rust-toolchain.toml` and the chiptool commit are pinned.
+Nix provides Rust, `rust-src`, chiptool, uv, LLVM and OpenOCD. The first Cargo build
+fetches dependencies; subsequent builds can use `--offline`. The IMC examples also
+have an isolated Nix build with vendored Cargo dependencies:
 
 ```sh
 nix build .#firmware
-# result/bin/{heartbeat,fusb302,i2c_latency,gpio_irq,analog,sampling}.elf
+# result/bin/{heartbeat,fusb302,i2c_latency,gpio_irq,analog,sampling,system,flash_probe}.elf
 nix flake check
 ```
 
-`checks` собирают IMC ELF и заново генерируют PAC с побайтовым сравнением.
-IMFC/build-std и диагностический binary проверяются через `tools/check.sh` в devShell.
+The Nix checks build IMC firmware and regenerate the PAC for a byte comparison.
+`tools/check.sh` additionally checks IMFC/build-std and the atomic diagnostic binary.
 
-| Конфигурация | Target | ABI | FP-контекст IRQ |
+| Configuration | Target | ABI | IRQ FP context |
 |---|---|---|---|
-| IMC | `riscv32imc-unknown-none-elf` | ilp32 | FP не используется |
+| IMC | `riscv32imc-unknown-none-elf` | ilp32 | No FP instructions |
 | IMFC, `fpu` | `riscv32imfc-unknown-none-elf` | ilp32f | f0..f31, fcsr, mstatus |
 
-IMFC является встроенным tier-3 target Rust. Alias `firmware-fpu` пересобирает `core`
-через `-Zbuild-std=core`; custom JSON не нужен. **Обе конфигурации исключают `A`.**
-Сборка HAL для A-target или IMFC без `fpu` намеренно отклоняется.
+IMFC is a built-in Rust tier-3 target. The `firmware-fpu` alias rebuilds `core` with
+`-Zbuild-std=core`; no custom JSON target is needed. **Both configurations exclude A.**
+The HAL rejects A targets and IMFC builds without the `fpu` feature.
 
-ELF находятся в `target/<target>/release/{heartbeat,fusb302,i2c_latency,gpio_irq,analog,sampling,fpu}`.
-Все они предназначены для загрузки **в RAM через JTAG/GDB**. Они не содержат flash/boot header;
-передавать их или результат обычного objcopy в `blisp flash` нельзя.
+ELF files are under `target/<target>/release/`. They are intended for **RAM loading
+through JTAG/GDB**. They have no flash/boot header; neither these files nor a plain
+objcopy output can be passed to `blisp flash` as a bootable image.
 
 ```sh
-# Изолированный бинарник с тремя намеренными A-инструкциями:
+# Isolated binary containing three intentional A instructions:
 cargo build --locked --release -p pinecil-v2-bringup --bin atomics \
   --features atomic-probe --target riscv32imc-unknown-none-elf
 
-# PAC, обе конфигурации, clippy, host-тесты, структура ELF и машинные инструкции:
+# PAC, both configurations, clippy, host tests, ELF layout and instruction encodings:
 bash tools/check.sh
 ```
 
-Скрипт оставляет диагностические файлы в
-`/home/okhsunrog/tmp_zfs/codex_tmp/bl706/checks/`;
-на другой машине задайте `BL706_DIAGNOSTICS`. Обычные сборки используют `target/`.
+Diagnostics go to `/home/okhsunrog/tmp_zfs/codex_tmp/bl706/checks/`;
+set `BL706_DIAGNOSTICS` on other machines. Normal builds use `target/`.
 
 ## PAC
 
@@ -65,27 +69,42 @@ bash tools/generate-pac.sh
 uv run --no-project tools/check_svd.py
 ```
 
-Исходный SVD и обе версии andelf сохранены неизменными в `svd/vendor/`.
-`patch_svd.py` применяет исправления до chiptool; `finish_pac.py` удаляет его Cortex-M glue
-и нормализует баннер генератора. Редактировать сгенерированный `lib.rs` вручную не нужно.
+The official SVD and both andelf versions are preserved unchanged in `svd/vendor/`.
+`patch_svd.py` applies corrections before chiptool; `finish_pac.py` removes Cortex-M
+glue and normalizes the generator banner. Do not edit generated `lib.rs` manually.
 
-Прямой PAC намеренно не обеспечивает владение периферией. Его безопасные MMIO-методы
-могут нарушить инварианты HAL. Не смешивайте прямую запись в PAC с активным драйвером.
+The PAC does not enforce peripheral ownership. Its safe MMIO accessors can violate
+HAL invariants; do not mix direct PAC writes with an active HAL driver.
 
-## Ограничения
+## Scope and limitations
 
-- Только одно ядро, M-mode, один thread executor с активным ожиданием. Вложенные IRQ и энергосбережение не поддерживаются.
-- RC32M имеет номинальную, а не измеренную частоту. PLL 144 MHz, XIP, загрузка из flash, RF, USB и DMA не реализованы.
-- UART0: TX на GPIO22, 115200 8N1 в примерах. RX GPIO23 не реализован.
-- GPIO: входы/выходы, IRQ-driven `embedded_hal_async::digital::Wait` (low/high/rising/falling/any-edge), отмена ожидания. Подробности: [GPIO](docs/gpio.md). FUSB302 INT_N на GPIO16; debounce и deep-sleep wakeup не реализованы.
-- ADC: single-ended finite scans 1..12 позиций на GPIO18/19/20 и GND, raw/right-aligned results, явная gain calibration из готового eFuse shadow. Differential/continuous/DMA пока нет.
-- PWM: 5 каналов, BCLK, normal polarity, `SetDutyCycle`, one-shot period IRQ; TIMER0/1: raw compare/preload, async wait или статический ISR driver. `mtime` остаётся отдельным. Подробности и допущения: [ADC/PWM/TIMER](docs/analog.md).
-- `analog` и `sampling` используют PWM без маршрутизации на pad; GPIO21 удерживается low. Рабочий регулятор нагрева и его защита не реализованы.
-- I²C: один пакет 1..256 байт; `write_read` с 1..4 байтами sub-address использует hardware repeated START. Другие формы `transaction` и пустые пакеты возвращают `Unsupported` до начала обмена. Автоматического bit-bang bus recovery нет.
-- FIFO обслуживается из ISR; задача только ждёт результат. Используется внутренний 256-байтный packet buffer, чтобы ISR не хранил указатели на память вызывающего кода. Подробности и отмена: [I²C](docs/i2c.md).
-- Read-only probe FUSB302 не реализует USB-PD policy engine и не запрашивает повышенное напряжение.
-- Time queue рассчитана на восемь различных ожидающих waker. Это начальное ограничение конфигурации, не общий предел Embassy.
+- One hart, M-mode, one spinning thread executor. No nested interrupts or sleep support.
+- Init-time RC32M, XTAL32M and DLL96/144M profiles; frequencies are nominal, not measured.
+  No live clock switching, boot image, XIP startup, RF, USB or DMA support.
+- Watchdog reset mode and explicit system reset are implemented; see [system](docs/system.md).
+- NOR flash implements blocking and async `embedded-storage` traits with a reserved
+  region and explicit device-ID check. It requires a RAM-only execution and board/SPI
+  contract; the actual flash chip is unknown. The default probe only reads.
+  No storage format, wear leveling or XIP restoration; see [flash](docs/flash.md).
+- UART0: TX on GPIO22, 115200 8N1 in examples; no RX support.
+- GPIO inputs/outputs and all five interrupt-driven async `Wait` modes, with cancellation.
+  FUSB302 INT_N is GPIO16; no debounce or deep-sleep wakeup. See [GPIO](docs/gpio.md).
+- ADC: finite single-ended scans of 1..12 entries on GPIO18/19/20 and GND,
+  raw/right-aligned samples and optional gain trim from a ready eFuse shadow.
+  No differential/continuous/DMA support.
+- PWM: five BCLK channels, normal polarity, `SetDutyCycle`, one-shot period IRQ.
+  TIMER0/1: raw compare/preload, async wait or a static ISR driver; `mtime` remains
+  independent. See [ADC/PWM/TIMER](docs/analog.md).
+- `analog` and `sampling` leave PWM unrouted and hold GPIO21 low. No heater regulator
+  or qualified heating protection is implemented.
+- I²C: 1..256-byte packets; `write_read` with a 1..4-byte sub-address uses hardware
+  repeated START. Other transaction shapes and empty packets return `Unsupported`
+  before bus activity. No automatic bit-bang bus recovery.
+- The ISR services the two-word I²C FIFO through an internal 256-byte buffer; tasks
+  wait for completion. No caller buffer pointers are retained by the ISR. See [I²C](docs/i2c.md).
+- FUSB302 probes do not implement USB-PD policy or request a higher voltage.
+- The time queue supports eight distinct waiting wakers, an initial configuration limit.
 
-Подробности: [источники](docs/sources.md), [аудит PAC](docs/pac-audit.md),
-[атомики и FPU](docs/atomics.md), [аппаратные допущения и проверки](docs/hardware.md),
-[результаты локальной проверки](docs/validation.md).
+See [sources](docs/sources.md), [PAC audit](docs/pac-audit.md),
+[atomics and FPU](docs/atomics.md), [hardware assumptions and checklist](docs/hardware.md)
+and [local validation](docs/validation.md).
