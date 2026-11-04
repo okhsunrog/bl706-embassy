@@ -70,21 +70,30 @@ Record the actual U1 marking and ID.
 
 For first bring-up, remove the tip, use current-limited power and check Tip_Control
 low. Obtain a verified backup of stock flash and a ROM ISP recovery path. A RAM ELF
-is not an instruction or authorization to erase flash. No hardware tests or device
-writes were performed while developing this repository.
+is not an instruction or authorization to erase flash. The first RAM heartbeat
+has now run on BL706 with RTT; see [validation results](validation.md).
 
-After preparing an appropriate JTAG adapter/OpenOCD target configuration, a manual
-RAM load could use the following GDB commands. They have **not** been executed here:
+The Pico CMSIS-DAP wiring and OpenOCD target are in `tools/pinecil-v2.cfg`.
+After cold booting into ROM ISP, start OpenOCD from the repository root:
+
+```sh
+openocd -f tools/pinecil-v2.cfg
+gdb target/riscv32imc-unknown-none-elf/release/heartbeat -x tools/ram-load.gdb
+```
+
+The GDB script rejects a PC outside ROM, loads only RAM, compares all ELF
+sections and stops at `__bl706_main` before HAL initialization. This sequence
+has been executed on the first board. After inspecting the state, explicitly
+resume the core; detaching alone can leave it halted:
 
 ```gdb
-file target/riscv32imc-unknown-none-elf/release/heartbeat
-target extended-remote localhost:3333
-monitor reset halt
-load
-set $pc = _start
-break bl706_fatal_trap
-continue
+monitor resume
+detach
+quit
 ```
+
+Stop OpenOCD before attaching an RTT reader through probe-rs/flashprobe-mcp;
+both programs cannot own the USB probe at the same time. No UART is needed.
 
 If ITCM/OCRAM cannot be loaded after reset, establish the debugger memory/reset
 contract first rather than changing flash/cache registers speculatively.

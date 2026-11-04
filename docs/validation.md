@@ -1,7 +1,7 @@
 # Local validation
 
-2026-11-04, x86_64-linux/NixOS. These are the initial offline results;
-peripheral validation on hardware remains pending.
+2026-11-04, x86_64-linux/NixOS. Host checks and the first BL706 RAM heartbeat
+are recorded separately below; broader peripheral validation remains pending.
 
 ## Checks
 
@@ -28,9 +28,42 @@ peripheral validation on hardware remains pending.
 The complete `tools/check.sh` suite also passes after replacing example UART
 output with nonblocking RTT (4 KiB up-channel 0). The HAL UART driver remains
 available, but the examples no longer initialize GPIO22 for logging. Host checks
-and ELF audits do not establish that RTT or peripheral initialization works on
-the MCU. First-board logs are kept under
+and ELF audits alone do not establish runtime behavior. Initial build logs are kept under
 `/home/okhsunrog/tmp_zfs/codex_tmp/bl706/first-hardware/`.
+
+## First board
+
+Pinecil V2 BL706, tip removed, powered by USB. A standalone RP2040 Pico runs
+the Grapple PIO CMSIS-DAP port with the existing JTAGprobe wiring. TAP ID is
+`0x20000e05`, hart ISA `0x40801125`. Both probe-rs and the patched flashprobe-mcp
+identify BL706. No target flash was programmed or erased.
+
+Before the RAM load, two independent full 1 MiB stock flash reads matched;
+their first 64 KiB also matched the original pre-port JTAG read. SHA-256:
+`04a3b7cef280475dc2f551152a79e087108188bc51a8a8b369c0d8ac826c2da1`.
+At the same 1 MHz TCK, OpenOCD reads 64 KiB in 3.33 seconds instead of the
+previous approximately two minutes. At 4 MHz it takes 2.36 seconds; two full
+1 MiB reads take 74.12 seconds total. All compared data match.
+
+After a cold boot into ROM ISP (PC `0x2100e5c6`), GDB loaded `heartbeat` into
+ITCM/OCRAM and compared every loaded section successfully. Startup reached
+`__bl706_main`, with SP `0x220269d0`, GP `0x22023db4`, MTVEC `0x22020003` and
+MIE clear. An explicit resume produced RTT startup/banner and ticks 0 through
+15, with successive mtime differences near 1,000,250 us. This is an initial
+functional observation, not an external clock accuracy measurement.
+
+OpenOCD CPU program-buffer reads show GPIO21 function 11 / output enabled,
+output latch low: `GPIO_CFGCTL10=0x0b020b03`, `GPIO_CFGCTL32=0`,
+`GPIO_CFGCTL34=0x00200200`. The input pad also reads low. This is register
+evidence; no oscilloscope measurement was performed.
+
+The first probe firmware exposed a synchronous GPIO wait using an incompatible
+Embassy timer waker; that was corrected and OpenOCD reset-pin commands now work.
+Subsequent direct GLB accesses through probe-rs SBA stalled the debug bus, while
+OpenOCD CPU program-buffer access continued to work. A GLB-specific probe-rs
+access override is being validated. The uninterrupted 10-minute heartbeat is
+still pending. Hardware logs for this session are under
+`/home/okhsunrog/tmp_zfs/codex_tmp/grapple-probe-pico/`.
 
 The 39 host tests exercise production logic but not the physical MCU. PAC generation
 from the git checkout and the Nix archive build yields the same SHA-256:

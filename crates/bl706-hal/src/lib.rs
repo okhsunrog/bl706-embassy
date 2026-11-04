@@ -1,4 +1,5 @@
-//! Experimental BL702/704/706 bring-up HAL. No hardware validation yet.
+//! Experimental BL702/704/706 bring-up HAL; first BL706 RAM heartbeat validated.
+//! See docs/validation.md for the scope and remaining hardware checks.
 #![no_std]
 #![deny(unsafe_op_in_unsafe_fn)]
 
