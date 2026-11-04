@@ -187,6 +187,27 @@ impl<const N: u8> Pin<N> {
             };
             let shift = (real % 2) * 16;
             reg.modify(|r| *r = (*r & !(0xffff << shift)) | (value << shift));
+            if real != N {
+                // SF pads have dedicated electrical controls, but their function
+                // mux still lives in the original GPIO23..28 register (SDK).
+                let mux = unsafe {
+                    pac::common::Reg::<u32, pac::common::RW>::from_ptr(
+                        (0x4000_0100 + usize::from(N / 2) * 4) as *mut u32,
+                    )
+                };
+                let shift = (N % 2) * 16 + 8;
+                mux.modify(|r| *r = (*r & !(0x1f << shift)) | (u32::from(function) << shift));
+            }
+            // GPIO9..13 also have an always-on input gate. ROM state must not
+            // determine whether a newly configured I2C/GPIO input can be read.
+            if (9..=13).contains(&N) {
+                pac::HBN.HBN_IRQ_MODE().modify(|r| {
+                    let bit = 1 << (N - 9);
+                    r.set_reg_aon_pad_ie_smt(
+                        (r.reg_aon_pad_ie_smt() & !bit) | if input { bit } else { 0 },
+                    );
+                });
+            }
         });
     }
 }

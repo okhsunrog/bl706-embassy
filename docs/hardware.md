@@ -45,6 +45,15 @@ IronOS `Pins.h` reverses the SCL/SDA labels. Its `pinmux_config.h` selects funct
 on both pins, so that discrepancy does not alter hardware routing; it matters for
 future GPIO bus recovery. GPIO23..28 honor `GPIO_USE_PSRAM__IO`: SDK can remap pad
 configuration to indices32..37. Other board pins are not configured automatically.
+The SF pad supplies IE/pulls/drive, while FUNC_SEL remains in the original
+GPIO23..28 register. Both must be configured. Input gates for GPIO9..13 in
+HBN_IRQ_MODE are also configured explicitly rather than inherited from ROM.
+
+The default I2C rate remains nominally 100 kHz. Applications can call
+`i2c.set_frequency(clocks, 300_000)` to use Pinecil V2 IronOS's requested rate;
+equal phases are rounded down in frequency and SCL synchronization adds delay.
+Transactions enable the same one-cycle deglitch filter as IronOS. Neither the
+register calculation nor a successful transfer measures the actual SCL rate.
 
 ## Examples
 

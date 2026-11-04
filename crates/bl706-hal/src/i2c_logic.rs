@@ -10,6 +10,30 @@ pub const ARBITRATION: u32 = 1 << 4;
 pub const FIFO_ERROR: u32 = 1 << 5;
 const ERRORS: u32 = NACK | ARBITRATION | FIFO_ERROR;
 
+/// Equal phase lengths, rounded so the nominal clock does not exceed `hz`.
+pub fn clock_phase(bus_hz: u32, hz: u32) -> Option<u8> {
+    if hz == 0 || hz > 400_000 {
+        return None;
+    }
+    let cycles = bus_hz.div_ceil(hz * 4);
+    u8::try_from(cycles.checked_sub(1)?).ok()
+}
+
+#[cfg(test)]
+#[test]
+fn clock_rates_fit_hardware_without_exceeding_requested_rate() {
+    for bus in [8_000_000, 32_000_000, 48_000_000] {
+        for hz in [50_000, 100_000, 300_000, 400_000] {
+            let phase = clock_phase(bus, hz).unwrap();
+            assert!(bus / (4 * (u32::from(phase) + 1)) <= hz);
+        }
+    }
+    assert_eq!(clock_phase(32_000_000, 300_000), Some(26));
+    assert_eq!(clock_phase(32_000_000, 0), None);
+    assert_eq!(clock_phase(32_000_000, 1), None);
+    assert_eq!(clock_phase(32_000_000, 400_001), None);
+}
+
 pub fn pack(bytes: &[u8]) -> u32 {
     assert!(bytes.len() <= 4);
     bytes

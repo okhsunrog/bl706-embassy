@@ -107,6 +107,22 @@ impl I2c {
         self.timeout = timeout;
     }
 
+    /// Change the nominal SCL rate while the owned bus is idle. SCL sync can
+    /// lower the effective rate. Standard/fast mode rates up to 400 kHz only.
+    pub fn set_frequency(&mut self, clocks: Clocks, hz: u32) -> Result<(), Error> {
+        let phase = logic::clock_phase(clocks.bus_hz(), hz).ok_or(Error::Unsupported)?;
+        if critical_section::with(|cs| TRANSFER.borrow(cs).borrow().is_active())
+            || pac::I2C.i2c_bus_busy().read().sts_i2c_bus_busy()
+        {
+            return Err(Error::BusBusy);
+        }
+        let period = u32::from(phase) * 0x0101_0101;
+        pac::I2C.i2c_prd_start().write(|r| r.0 = period);
+        pac::I2C.i2c_prd_stop().write(|r| r.0 = period);
+        pac::I2C.i2c_prd_data().write(|r| r.0 = period);
+        Ok(())
+    }
+
     async fn packet(
         &mut self,
         address: u8,
@@ -133,6 +149,9 @@ impl I2c {
             pac::I2C.i2c_config().write(|r| {
                 r.set_cr_i2c_pkt_dir(buffer.is_read());
                 r.set_cr_i2c_scl_sync_en(true);
+                // Same one-cycle deglitch filter used by Pinecil V2 IronOS.
+                r.set_cr_i2c_deg_en(true);
+                r.set_cr_i2c_deg_cnt(1);
                 r.set_cr_i2c_sub_addr_en(!sub.is_empty());
                 r.set_cr_i2c_sub_addr_bc(sub.len().saturating_sub(1) as u8);
                 r.set_cr_i2c_slv_addr(address);
