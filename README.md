@@ -26,6 +26,16 @@ requirements. From the workspace root:
 cargo run -r
 ```
 
+The OLED example uses the async `ssd1306` driver and `embedded-graphics`:
+
+```sh
+cargo run -r --bin display
+```
+
+It draws `Embassy BL706` and an animated marker on the 96×16 screen while a
+separate Embassy task logs a one-second RTT heartbeat. See [display](docs/display.md)
+for the board configuration and hardware validation.
+
 The explicit `firmware` aliases below retain the original RAM-only debug builds.
 
 ```sh
@@ -41,7 +51,7 @@ have an isolated Nix build with vendored Cargo dependencies:
 
 ```sh
 nix build .#firmware
-# result/bin/{heartbeat,fusb302,i2c_latency,gpio_irq,analog,sampling,system,flash_probe}.elf
+# result/bin/{heartbeat,display,fusb302,i2c_latency,gpio_irq,analog,sampling,system,flash_probe}.elf
 nix flake check
 ```
 

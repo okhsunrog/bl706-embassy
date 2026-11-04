@@ -27,7 +27,8 @@ cargo build --locked --release -p pinecil-v2-bringup --bin atomics --no-default-
 cargo clippy --locked --target riscv32imc-unknown-none-elf -p bl706-hal -p pinecil-v2-bringup --bins --no-default-features --features atomic-probe -- -D warnings
 cargo clippy --locked --target riscv32imfc-unknown-none-elf -Zbuild-std=core -p bl706-hal -p pinecil-v2-bringup --bins --no-default-features --features fpu -- -D warnings
 uv run --no-project tools/audit_elf.py
-cargo build --release --locked --bin heartbeat
+cargo build --release --locked --bin heartbeat --bin display
 uv run --no-project tools/audit_elf.py --flash
 uv run --no-project tools/test_flash_image.py target/riscv32imc-unknown-none-elf/release/heartbeat
+uv run --no-project tools/test_flash_image.py target/riscv32imc-unknown-none-elf/release/display
 echo 'Offline source/build/encoding checks passed. No hardware was exercised.'

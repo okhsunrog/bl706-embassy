@@ -37,6 +37,7 @@ driver can route controller **UART0 TX** to GPIO22. Examples now use RTT instead
 | UART RX | 23 | No RX driver |
 | I²C SCL | 10 | function6 |
 | I²C SDA | 11 | function6 |
+| OLED RESET_N | 3 | `display` drives an active-low reset; other examples leave it alone |
 | FUSB302 INT_N | 16 | Pull-up input, GPIO IRQ/level waits |
 | Button A / B | 25 / 28 | Pull-down inputs |
 
@@ -48,6 +49,8 @@ configuration to indices32..37. Other board pins are not configured automaticall
 ## Examples
 
 - `heartbeat`: RTT banner, seconds/time, buttons and PD_IRQ level.
+- `display`: async `ssd1306` / `embedded-graphics` text and animation at address
+  0x3c, with a separate RTT heartbeat; see [display](display.md).
 - `fusb302`: once per second, `write_read(0x22, [DEVICE_ID=0x01], 1 byte)` and Result.
   No read-to-clear INTERRUPT access, RESET writes or USB-PD negotiation.
 - `i2c_latency`: reads nine FUSB302 registers0x01..0x09, blocking the executor for

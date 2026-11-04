@@ -122,11 +122,12 @@ def audit(path, fpu=False, probes=False):
 
 if __name__ == "__main__":
     if sys.argv[1:] == ["--flash"]:
-        audit(ROOT/"target/riscv32imc-unknown-none-elf/release/heartbeat")
+        for binary in ["heartbeat", "display"]:
+            audit(ROOT/"target/riscv32imc-unknown-none-elf/release"/binary)
         sys.exit(0)
     for target, fpu, names in [
-        ("riscv32imc-unknown-none-elf", False, ["heartbeat", "fusb302", "i2c_latency", "gpio_irq", "analog", "sampling", "system", "flash_probe"]),
-        ("riscv32imfc-unknown-none-elf", True, ["heartbeat", "fusb302", "i2c_latency", "gpio_irq", "analog", "sampling", "system", "flash_probe", "fpu"]),
+        ("riscv32imc-unknown-none-elf", False, ["heartbeat", "display", "fusb302", "i2c_latency", "gpio_irq", "analog", "sampling", "system", "flash_probe"]),
+        ("riscv32imfc-unknown-none-elf", True, ["heartbeat", "display", "fusb302", "i2c_latency", "gpio_irq", "analog", "sampling", "system", "flash_probe", "fpu"]),
     ]:
         for binary in names:
             audit(ROOT/"target"/target/"release"/binary, fpu=fpu)

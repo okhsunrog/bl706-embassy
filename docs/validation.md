@@ -3,6 +3,10 @@
 2026-11-04, x86_64-linux/NixOS. Host checks and the first BL706 RAM heartbeat
 are recorded separately below; broader peripheral validation remains pending.
 
+The OLED example now also has hardware and user-visible validation, recorded in
+[display.md](display.md). It exercises concurrent Embassy tasks, timer wakeups
+and async I²C writes, without extending the acceptance claims for other drivers.
+
 ## Checks
 
 | Check | Result |
@@ -18,12 +22,12 @@ are recorded separately below; broader peripheral validation remains pending.
 | Host ADC/PWM/TIMER | 10 tests: scans1..12, errors/tags/extra/cancel/reuse, restart gate, packing/resolution, all4096 trims/parity/sign/clamp, PWM/TIMER bounds and shared fields |
 | Host clocks/watchdog | 4 tests: rate plans, mux encodings, bounds, timeout rounding |
 | Host NOR engine | 8 tests: region/ID/bounds/alignment, command encoding, page splitting, program/erase/readback, preconditions/protection, persistent pending, timeout/poison |
-| IMC release | heartbeat, fusb302, i2c_latency, gpio_irq, analog, sampling, system, flash_probe and isolated atomics link |
-| IMFC release/build-std=core | Same eight normal examples plus fpu link |
+| IMC release | heartbeat, display, fusb302, i2c_latency, gpio_irq, analog, sampling, system, flash_probe and isolated atomics link |
+| IMFC release/build-std=core | Same nine normal examples plus fpu link |
 | Clippy `-D warnings` | IMC with atomic-probe and IMFC with fpu pass; generated PAC permits standard generator lints |
 | ELF32 layout | RAM bounds, VMA=LMA, entry,8 KiB stack,80-entry vector table/handlers7/25/48/49/52/53/60,64-byte mtvec/mtvt alignment, ABI |
 | Clock/flash placement | Both clock-latch functions in ITCM; four compile-only flash wrappers retained in RAM |
-| Instruction encodings | No A opcodes in17 normal ELF files; exactly3 labelled probes in atomics; no FP in IMC; all32 FPR spills/reloads in IMFC |
+| Instruction encodings | No A opcodes in19 normal ELF files; exactly3 labelled probes in atomics; no FP in IMC; all32 FPR spills/reloads in IMFC |
 
 The complete `tools/check.sh` suite also passes after replacing example UART
 output with nonblocking RTT (4 KiB up-channel 0). The HAL UART driver remains
