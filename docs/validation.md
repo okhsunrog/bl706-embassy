@@ -61,7 +61,9 @@ The first probe firmware exposed a synchronous GPIO wait using an incompatible
 Embassy timer waker; that was corrected and OpenOCD reset-pin commands now work.
 Subsequent direct GLB accesses through probe-rs SBA stalled the debug bus, while
 OpenOCD CPU program-buffer access continued to work. A GLB-specific probe-rs
-access override is being validated. The uninterrupted 10-minute heartbeat is
+access override in probe-rs commit `b6976df6e` now reads GPIO configuration and
+output registers correctly on the board; it preserves SBA for RAM/flash. The
+global CLI and flashprobe-mcp use that revision. The uninterrupted 10-minute heartbeat is
 still pending. Hardware logs for this session are under
 `/home/okhsunrog/tmp_zfs/codex_tmp/grapple-probe-pico/`.
 
