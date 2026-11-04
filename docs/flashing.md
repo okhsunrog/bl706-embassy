@@ -72,5 +72,12 @@ An ordinary software system reset also booted the flash bootstrap and ran the
 RAM heartbeat. A `cargo run -r` after deliberately parking the CPU in an infinite
 RAM loop also recovered and produced fresh startup/timer logs. GPIO21 was an
 enabled output with its latch/pad low, and the fatal-trap record was all zero.
-These checks do not by themselves prove a physical power-cycle
-or validate the other peripheral examples.
+A subsequent physical USB power-cycle, without pressing buttons, also booted the
+program: a fresh MCP `monitor` captured its banner and ticks 0 through 20 without
+issuing a reset or flash operation. These checks do not validate the other
+peripheral examples.
+
+The rebuilt flashprobe MCP, pinned to the same probe-rs revision, also passed
+`flash_monitor` (fresh ticks 0/1/2) and three `rerun` cycles (each reached tick 2).
+A RAM-only ELF also passed MCP `flash_monitor` with fresh ticks 0/1/2, after
+which `probe-rs reset` returned execution to the flash image without rewriting it.
