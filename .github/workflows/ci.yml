@@ -17,8 +17,6 @@ jobs:
     name: PAC, rustfmt, clippy and firmware
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    env:
-      BL706_DIAGNOSTICS: ${{ runner.temp }}/bl706-checks
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -48,4 +46,6 @@ jobs:
           echo "CHIPTOOL=$RUNNER_TEMP/chiptool/target/$host_target/release/chiptool" >> "$GITHUB_ENV"
 
       - name: Regenerate PAC, run host tests, build and lint IMC/IMFC
+        env:
+          BL706_DIAGNOSTICS: ${{ runner.temp }}/bl706-checks
         run: bash tools/check.sh
