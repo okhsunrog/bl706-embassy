@@ -68,7 +68,7 @@ print("SVD source comparison and reviewed base/IRQ/gate assertions OK")
 
 for p, addr in [("gpip",0x40002000),("timer",0x4000a500),("pwm",0x4000a400)]:
     assert int(ps[p].findtext("baseAddress"),0) == addr
-for p,name,number in [("gpip","ADC",25),("pwm","PWM",49),("timer","TIMER0",52),("timer","TIMER1",53)]:
+for p,name,number in [("gpip","ADC",16+25),("pwm","PWM",16+34),("timer","TIMER0",52),("timer","TIMER1",53)]:
     assert int(ps[p].findtext(f"./interrupt[name='{name}']/value")) == number
 for p,name,offset,access in [
     ("gpip","gpadc_dma_rdata",4,"read-only"),

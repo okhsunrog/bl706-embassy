@@ -384,7 +384,7 @@ impl<P: Inputs> Adc<P> {
             calibrated: self.config.calibration.is_some(),
         }
     }
-    /// Complete finite scan through IRQ 25. Caller output is unchanged on error/cancel.
+    /// Complete finite scan through IRQ 41. Caller output is unchanged on error/cancel.
     pub async fn read_scan(
         &mut self,
         channels: &[Channel],

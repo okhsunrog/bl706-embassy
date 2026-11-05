@@ -26,7 +26,18 @@ core::arch::global_asm!(
 );
 #[cfg(feature = "fpu")]
 core::arch::global_asm!(include_str!("runtime-fpu.S"));
-core::arch::global_asm!(include_str!("runtime.S"));
+core::arch::global_asm!(
+    include_str!("runtime.S"),
+    msoft_irq = const crate::interrupt::MSOFT,
+    mtime_irq = const crate::interrupt::MTIME,
+    adc_irq = const crate::interrupt::ADC,
+    uart0_irq = const crate::interrupt::UART0,
+    i2c_irq = const crate::interrupt::I2C,
+    pwm_irq = const crate::interrupt::PWM,
+    timer0_irq = const crate::interrupt::TIMER0,
+    timer1_irq = const crate::interrupt::TIMER1,
+    gpio_irq = const crate::interrupt::GPIO,
+);
 
 #[cfg(feature = "flash")]
 core::arch::global_asm!(include_str!("flash-boot.S"));

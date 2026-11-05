@@ -17,7 +17,7 @@ watchdog fields. The whole TIMER block is never reset. The watchdog has its own
 `embassy_time` uses core-local `mtime`, leaving TIMER0/1 available. Async APIs require
 global MIE enabled. Static wakers/IRQ state retain no future or caller-buffer pointers.
 Completion before waker registration stays latched. Completion/cancellation masks
-the source, clears status and releases the waker. CLIC sources: ADC=25, PWM=49,
+the source, clears status and releases the waker. CLIC sources: ADC=41, PWM=50,
 TIMER0=52, TIMER1=53. IRQs do not nest; a long handler delays other peripherals.
 
 ## ADC

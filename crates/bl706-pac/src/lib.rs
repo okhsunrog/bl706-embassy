@@ -7,16 +7,16 @@
 #![no_std]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Interrupt {
-    #[doc = "25 - ADC"]
-    ADC = 25,
+    #[doc = "41 - ADC"]
+    ADC = 41,
     #[doc = "45 - UART0"]
     UART0 = 45,
     #[doc = "46 - UART1"]
     UART1 = 46,
     #[doc = "48 - I2C"]
     I2C = 48,
-    #[doc = "49 - PWM"]
-    PWM = 49,
+    #[doc = "50 - PWM"]
+    PWM = 50,
     #[doc = "52 - TIMER0"]
     TIMER0 = 52,
     #[doc = "53 - TIMER1"]

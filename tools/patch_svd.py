@@ -88,7 +88,7 @@ by_name["uart1"].append(copy.deepcopy(by_name["uart"].find("registers")))
 
 # SDK IRQn = peripheral source + 16. Core-local MTIME is handled by HAL.
 for p, name, number in [("uart", "UART0", 45), ("uart1", "UART1", 46), ("i2c", "I2C", 48), ("glb", "GPIO", 60),
-                         ("gpip", "ADC", 25), ("pwm", "PWM", 49), ("timer", "TIMER0", 52), ("timer", "TIMER1", 53)]:
+                         ("gpip", "ADC", 16 + 25), ("pwm", "PWM", 16 + 34), ("timer", "TIMER0", 52), ("timer", "TIMER1", 53)]:
     irq = ET.SubElement(by_name[p], "interrupt")
     ET.SubElement(irq, "name").text = name
     ET.SubElement(irq, "value").text = str(number)

@@ -30,38 +30,14 @@ _start:
 .balign 64
 .global bl706_vectors
 bl706_vectors:
-    .rept 3
+    .set .Lvector_index, 0
+    .rept 80
+    .if (.Lvector_index == {msoft_irq}) || (.Lvector_index == {mtime_irq}) || (.Lvector_index == {adc_irq}) || (.Lvector_index == {uart0_irq}) || (.Lvector_index == {i2c_irq}) || (.Lvector_index == {pwm_irq}) || (.Lvector_index == {timer0_irq}) || (.Lvector_index == {timer1_irq}) || (.Lvector_index == {gpio_irq})
+    .word bl706_irq_entry
+    .else
     .word bl706_fatal_trap
-    .endr
-    .word bl706_irq_entry
-    .rept 3
-    .word bl706_fatal_trap
-    .endr
-    .word bl706_irq_entry
-    .rept 17
-    .word bl706_fatal_trap
-    .endr
-    .word bl706_irq_entry
-    .rept 19
-    .word bl706_fatal_trap
-    .endr
-    .word bl706_irq_entry
-    .rept 2
-    .word bl706_fatal_trap
-    .endr
-    .word bl706_irq_entry
-    .word bl706_irq_entry
-    .rept 2
-    .word bl706_fatal_trap
-    .endr
-    .word bl706_irq_entry
-    .word bl706_irq_entry
-    .rept 6
-    .word bl706_fatal_trap
-    .endr
-    .word bl706_irq_entry
-    .rept 19
-    .word bl706_fatal_trap
+    .endif
+    .set .Lvector_index, .Lvector_index + 1
     .endr
 
 .section .text.trap, "ax"
