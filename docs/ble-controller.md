@@ -99,6 +99,50 @@ Important integration constraints:
 
 ## Implementation sequence
 
+### Execution contexts found in `m0s1`
+
+The disassembled `rwble_isr` calls `ea_finetimer_isr`, `lld_evt_end_isr`,
+`lld_evt_rx_isr`, `ea_sw_isr`, `lld_evt_timer_isr`, `lld_crypt_isr` and
+`lld_evt_slot_isr`, depending on radio status. This is the immediate radio/timer
+path on IRQ72. It must remain independent of async task polling and UI work.
+The SDK requests registration through platform functions; the HAL still needs
+to supply the vector, dispatcher and priorities. Registration is not automatic
+in an otherwise unrelated runtime.
+
+The second layer is the controller worker:
+
+```text
+IRQ72 / host HCI submission
+  -> controller queue or latched wakeup
+  -> worker: hci_send_2_controller(), rwip_schedule()
+  -> ble_ke_event_schedule()
+  -> deferred link-layer events and controller message handlers
+```
+
+In particular, `lld_evt_init` registers `lld_evt_deffered_elt_handler` for event8
+and `lld_evt_delete_elt_handler` for event9 (vendor spelling retained). The
+deferred handler calls connection-update processing, `lld_pdu_check`,
+`llc_end_evt_defer`, `llm_end_evt_defer` and buffer release routines.
+`ble_ke_task_schedule` dispatches the controller's own protocol-message handlers.
+These are controller internals, not the future Rust host's GATT callbacks.
+
+This worker can be driven by an Embassy task, but its deferred work is not
+arbitrarily delay-tolerant. The scheduler drains pending event callbacks in a
+synchronous loop until its event bitmap is empty; one C call has no async yield
+or fixed execution-time budget. A first HCI/advertising experiment can use a
+minimal ordinary thread task. Before integrating UI load, measure IRQ-to-worker
+latency, longest scheduler turn and coexistence with PD. A higher-priority
+executor is an option after bounding its work, not a substitute for that bound.
+The stock RTOS task's numeric priority does not supply a measured deadline.
+
+The third layer is the Rust host: `bt-hci` queues/controller adapter, Trouble,
+GATT settings and telemetry. Trouble and application work can use the ordinary
+thread executor. Vendor RX callbacks should only retain/extract packets into
+owned storage and wake the consumer; they must not execute the host stack or
+perform blocking/log-heavy work on a possible ISR path.
+
+### Bring-up milestones
+
 1. Replace the task/queue part of `arch_main.o` with an explicitly owned,
    bounded controller worker and ISR wakeups. Preserve the vendor scheduler and
    controller state machine; reconstruct and verify each exported ABI.
