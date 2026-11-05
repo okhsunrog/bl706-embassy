@@ -1,6 +1,33 @@
 //! Init-time-only RC32M/XTAL32M/DLL configuration. No live clock changes.
-pub use crate::clock_logic::{Clocks, Config, Error, Reference, Root};
+pub use crate::clock_logic::{Clocks, Config, Error, FlashClock, Reference, Root};
 use crate::pac;
+
+// a0 is a validated FlashClock register profile. No XIP, stack or calls while
+// SF_CLK_EN is low. The caller masks IRQs throughout initialization. Preserve
+// UART and other unrelated CLK_CFG2 fields, then synchronize instruction fetch.
+#[unsafe(naked)]
+#[unsafe(link_section = ".text.clock_switch")]
+#[unsafe(export_name = "bl706_flash_clock_apply")]
+unsafe extern "C" fn switch_flash(_profile: u32) {
+    core::arch::naked_asm!(
+        "fence iorw,iorw",
+        "li t0,0x40000008",
+        "lw t1,0(t0)",
+        "li t2,0xfffff7ff",
+        "and t2,t1,t2",
+        "sw t2,0(t0)",
+        "li t2,0xffff00ff",
+        "and t1,t1,t2",
+        "or t1,t1,a0",
+        "sw t1,0(t0)",
+        "li t2,0x800",
+        "or t1,t1,t2",
+        "sw t1,0(t0)",
+        "fence iorw,iorw",
+        "fence.i",
+        "ret"
+    );
+}
 
 // ITCM only, no stack access while latching BCLK dividers. Move to a slow root first.
 #[unsafe(naked)]
@@ -79,6 +106,9 @@ fn rc_delay_us(us: u32) {
 pub(crate) unsafe fn init(config: Config) -> Result<Clocks, Error> {
     let clocks = config.plan()?;
     unsafe {
+        // A warm entry may inherit DLL-clocked XIP. Move flash to XCLK before
+        // powering down/reprogramming the DLL, even for the slow CPU profile.
+        switch_flash(FlashClock::Xclk8m.register_bits());
         switch_rc32m();
     }
     if config.uses_xtal() {
@@ -147,6 +177,7 @@ pub(crate) unsafe fn init(config: Config) -> Result<Clocks, Error> {
         (u32::from(config.cpu_divider - 1) << 8) | (u32::from(config.bus_divider - 1) << 16);
     unsafe {
         switch_planned(config.root_encoding(), dividers);
+        switch_flash(config.flash_clock.register_bits());
     }
     pac::GLB.clk_cfg2().modify(|r| r.set_uart_clk_en(false));
     pac::HBN.HBN_GLB().modify(|r| r.set_hbn_uart_clk_sel(false)); // FCLK, not XCLK.
