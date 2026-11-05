@@ -23,6 +23,7 @@ impl core::fmt::Write for Logger {
 
 /// Hold the active-high heater drive low throughout each bring-up program.
 pub struct Board {
+    pub software_interrupt: bl706_hal::executor::InterruptToken,
     pub log: Logger,
     pub heater_off: Output<21>,
     pub i2c: bl706_hal::i2c::I2c,
@@ -36,6 +37,7 @@ pub fn board() -> Board {
     let p = bl706_hal::init();
     let heater_off = p.pins.p21.into_output(false);
     let board = Board {
+        software_interrupt: p.software_interrupt,
         log,
         heater_off,
         i2c: bl706_hal::i2c::I2c::new(p.i2c, p.pins.p10, p.pins.p11, p.clocks),

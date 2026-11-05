@@ -30,7 +30,11 @@ _start:
 .balign 64
 .global bl706_vectors
 bl706_vectors:
-    .rept 7
+    .rept 3
+    .word bl706_fatal_trap
+    .endr
+    .word bl706_irq_entry
+    .rept 3
     .word bl706_fatal_trap
     .endr
     .word bl706_irq_entry

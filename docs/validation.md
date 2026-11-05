@@ -1,5 +1,11 @@
 # Local validation
 
+2026-11-05: the [interrupt executor](executor.md) passed the full offline suite
+and an IMFC hardware regression: 113 rounds of thread preemption, timer/I2C
+wakeups, async mutex exclusion/unlock and interrupted ft11/FCSR preservation.
+Each busy-thread interval completed 31 nine-byte FUSB302 reads in the IRQ task.
+This result does not establish USB-PD stability in an application.
+
 2026-11-05: the full offline suite passed after adding a bounded BUS_BUSY idle
 wait before starting I2C packets. The cancellation hardware regression and its
 before/after results are recorded in [i2c.md](i2c.md#cancellation-hardware-regression-2026-11-05).
@@ -26,12 +32,12 @@ and async I²C writes, without extending the acceptance claims for other drivers
 | Host ADC/PWM/TIMER | 10 tests: scans1..12, errors/tags/extra/cancel/reuse, restart gate, packing/resolution, all4096 trims/parity/sign/clamp, PWM/TIMER bounds and shared fields |
 | Host clocks/watchdog | 4 tests: rate plans, mux encodings, bounds, timeout rounding |
 | Host NOR engine | 8 tests: region/ID/bounds/alignment, command encoding, page splitting, program/erase/readback, preconditions/protection, persistent pending, timeout/poison |
-| IMC release | heartbeat, display, fusb302, i2c_latency, gpio_irq, analog, sampling, system, flash_probe and isolated atomics link |
-| IMFC release/build-std=core | Same nine normal examples plus fpu link |
+| IMC release | heartbeat, display, fusb302, i2c_latency, interrupt_executor, gpio_irq, analog, sampling, system, flash_probe and isolated atomics link |
+| IMFC release/build-std=core | Same ten normal examples plus fpu link |
 | Clippy `-D warnings` | IMC with atomic-probe and IMFC with fpu pass; generated PAC permits standard generator lints |
-| ELF32 layout | RAM bounds, VMA=LMA, entry,8 KiB stack,80-entry vector table/handlers7/25/48/49/52/53/60,64-byte mtvec/mtvt alignment, ABI |
+| ELF32 layout | RAM bounds, VMA=LMA, entry,8 KiB stack,80-entry vector table/handlers3/7/25/48/49/52/53/60,64-byte mtvec/mtvt alignment, ABI |
 | Clock/flash placement | Both clock-latch functions in ITCM; four compile-only flash wrappers retained in RAM |
-| Instruction encodings | No A opcodes in19 normal ELF files; exactly3 labelled probes in atomics; no FP in IMC; all32 FPR spills/reloads in IMFC |
+| Instruction encodings | No A opcodes in21 normal ELF files; exactly3 labelled probes in atomics; no FP in IMC; all32 FPR spills/reloads in IMFC |
 
 The complete `tools/check.sh` suite also passes after replacing example UART
 output with nonblocking RTT (4 KiB up-channel 0). The HAL UART driver remains

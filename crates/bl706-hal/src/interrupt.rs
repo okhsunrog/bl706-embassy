@@ -1,5 +1,6 @@
 //! BL70x's older SiFive CLIC byte arrays, not PLIC or T-Head CLIC.
 use core::ptr::{read_volatile, write_volatile};
+pub const MSOFT: u8 = 3;
 pub const MTIME: u8 = 7;
 pub const I2C: u8 = 48;
 pub const GPIO: u8 = 60;
@@ -8,8 +9,20 @@ pub const PWM: u8 = 49;
 pub const TIMER0: u8 = 52;
 pub const TIMER1: u8 = 53;
 const BASE: usize = 0x0280_0000;
+// BL702 SDK e24/clic.h: CLINT base 0x02000000, MSIP offset 0, 32-bit.
+const MSIP: *mut u32 = 0x0200_0000 as *mut u32;
+
+pub(crate) fn pend_software() {
+    unsafe { write_volatile(MSIP, 1) };
+    crate::io_fence();
+}
+pub(crate) fn clear_software() {
+    unsafe { write_volatile(MSIP, 0) };
+    crate::io_fence();
+}
 
 pub(crate) unsafe fn init() {
+    clear_software();
     unsafe {
         for n in 0..80 {
             write_volatile((BASE + 0x400 + n) as *mut u8, 0);
@@ -47,6 +60,7 @@ pub(crate) unsafe fn enable_global() {
 #[unsafe(no_mangle)]
 extern "C" fn bl706_irq_dispatch(number: usize) {
     match number {
+        3 => crate::executor::on_interrupt(),
         7 => crate::time::on_interrupt(),
         25 => crate::adc::on_interrupt(),
         48 => crate::i2c::on_interrupt(),

@@ -8,7 +8,7 @@ default-run = "heartbeat"
 
 [dependencies]
 bl706-hal = { version = "0.1.0", path = "../../crates/bl706-hal" }
-embassy-executor = { version = "0.10.0", default-features = false, features = ["platform-spin", "executor-thread"] }
+embassy-executor = { version = "0.10.0", default-features = false }
 embassy-sync = "0.8.0"
 embassy-time = "0.5.1"
 embedded-graphics = "0.8.2"

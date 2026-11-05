@@ -4,13 +4,14 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 
 pub use bl706_pac as pac;
-pub use embassy_executor::Executor;
 pub use embedded_hal_async;
+pub use executor::{Executor, InterruptExecutor};
 /// Software fallback atomics, unified with static_cell by Cargo features.
 pub use portable_atomic;
 pub mod adc;
 pub mod clock;
 mod clock_logic;
+pub mod executor;
 pub mod flash;
 mod flash_logic;
 pub mod gpio;
@@ -30,6 +31,7 @@ use critical_section::Mutex;
 static TAKEN: Mutex<Cell<bool>> = Mutex::new(Cell::new(false));
 
 pub struct Peripherals {
+    pub software_interrupt: executor::InterruptToken,
     pub pins: gpio::Pins,
     pub uart0: uart::Uart0Token,
     pub i2c: i2c::I2cToken,
@@ -69,6 +71,7 @@ pub fn init_with_config(config: clock::Config) -> Result<Peripherals, clock::Err
             gpio::init();
             time::init(clocks);
             Ok(Peripherals {
+                software_interrupt: executor::InterruptToken::new(),
                 pins: gpio::Pins::new(),
                 uart0: uart::Uart0Token::new(),
                 i2c: i2c::I2cToken::new(),

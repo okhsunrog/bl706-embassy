@@ -36,6 +36,10 @@ It draws `Embassy BL706` and an animated marker on the 96×16 screen while a
 separate Embassy task logs a one-second RTT heartbeat. See [display](docs/display.md)
 for the board configuration and hardware validation.
 
+For tasks that must preempt CPU work in thread mode, the HAL also provides a
+[software interrupt executor](docs/executor.md). Its HIL example checks timer
+and I2C progress, a shared async mutex and FP context during a busy thread.
+
 The explicit `firmware` aliases below retain the original RAM-only debug builds.
 
 ```sh
@@ -51,7 +55,7 @@ have an isolated Nix build with vendored Cargo dependencies:
 
 ```sh
 nix build .#firmware
-# result/bin/{heartbeat,display,fusb302,i2c_latency,gpio_irq,analog,sampling,system,flash_probe}.elf
+# result/bin/{heartbeat,display,fusb302,i2c_latency,interrupt_executor,gpio_irq,analog,sampling,system,flash_probe}.elf
 nix flake check
 ```
 
@@ -101,7 +105,8 @@ HAL invariants; do not mix direct PAC writes with an active HAL driver.
 
 ## Scope and limitations
 
-- One hart, M-mode, one spinning thread executor. No nested interrupts or sleep support.
+- One hart, M-mode, a spinning thread executor and one software interrupt executor.
+  No nested interrupts or sleep support; interrupt task polls must be short.
 - Init-time RC32M, XTAL32M and DLL96/144M profiles; frequencies are nominal, not measured.
   No live clock switching, application XIP execution, RF, USB or DMA support.
   Flash boot uses a small XIP stub followed by execution entirely from RAM.
