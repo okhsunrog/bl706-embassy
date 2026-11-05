@@ -1,10 +1,11 @@
 # ADC, PWM and TIMER
 
-ADC has been exercised on Pinecil V2's BL706 through the read-only controller in
-[`pinecil-rs`](https://github.com/okhsunrog/pinecil-rs). PWM and TIMER support still
-await hardware validation. Times and voltages below are nominal. Both examples
-hold GPIO21 as an ordinary low output with PWM unrouted. A complete heater
-regulator and hardware qualification are outside this support.
+ADC has been exercised on Pinecil V2's BL706 through
+[`pinecil-rs`](https://github.com/okhsunrog/pinecil-rs). TIMER0 free-running compare
+callbacks have also been tested with PWM1 at zero duty. Other PWM/TIMER paths
+still need hardware qualification. Times and voltages below are nominal. The
+standalone examples keep GPIO21 low with PWM unrouted; application heater
+regulation and its qualification belong to the board firmware.
 
 ## Ownership and Embassy
 
@@ -200,6 +201,18 @@ This test validates completion of the exercised ADC scans and the application
 measurement path. It does not validate all ADC modes, mixed-channel ordering,
 fault/cancellation timing on hardware, absolute thermocouple accuracy, PWM,
 TIMER callbacks or heater fail-off behavior.
+
+On 2026-11-06, Pinecil's timer-owned output test exposed a stale counter latch:
+the SDK-style TCVWR request/three-read sequence failed to rearm a second cutoff.
+With TCVSYN, consecutive 20000/2000 us zero-duty windows measured 20044/2003 us.
+The second cutoff ran during a 6000 us task-polling stall; both callbacks
+completed, with no cancellation. These are firmware timestamps, not a scope
+measurement. They qualify this TIMER0 free-running compare/handler path, not
+preload/restart modes, period-count PWM interrupts or all clock sources.
+The application also observed a reboot after withholding watchdog feeding
+with output stopped, and reprogramming with its watchdog armed passed readback
+verification. See the [application hardware record](https://github.com/okhsunrog/pinecil-rs/blob/main/docs/heating-hardware.json)
+for the image revision, reset-flag limitation and remaining heater tests.
 
 ## Sources
 
