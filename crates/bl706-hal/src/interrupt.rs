@@ -5,6 +5,7 @@ pub const MTIME: u8 = 7;
 pub const UART0: u8 = 45;
 pub const I2C: u8 = 48;
 pub const GPIO: u8 = 60;
+pub const RADIO: u8 = 72;
 // SDK peripheral numbers are relative to IRQ_NUM_BASE=16 on RISC-V.
 pub const ADC: u8 = 16 + 25;
 pub const PWM: u8 = 16 + 34;
@@ -67,7 +68,11 @@ pub(crate) unsafe fn enable_global() {
 #[unsafe(no_mangle)]
 extern "C" fn bl706_irq_dispatch(number: usize) {
     match number {
-        3 => crate::executor::on_interrupt(),
+        3 => {
+            if !crate::radio::on_boot_software_interrupt() {
+                crate::executor::on_interrupt();
+            }
+        }
         7 => crate::time::on_interrupt(),
         41 => crate::adc::on_interrupt(),
         45 => crate::uart::on_interrupt(),
@@ -76,6 +81,7 @@ extern "C" fn bl706_irq_dispatch(number: usize) {
         52 => crate::timer::on_interrupt(0),
         53 => crate::timer::on_interrupt(1),
         60 => crate::gpio::on_interrupt(),
+        72 => crate::radio::on_interrupt(),
         _ => unreachable!(),
     }
 }

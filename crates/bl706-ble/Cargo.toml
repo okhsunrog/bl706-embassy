@@ -1,0 +1,22 @@
+[package]
+name = "bl706-ble"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "Experimental RTOS-independent BL70x BLE controller adapter"
+
+[dependencies]
+bl706-hal = { version = "0.1.0", path = "../bl706-hal", optional = true }
+bt-hci = { version = "0.10", default-features = false }
+critical-section = { version = "1.2.0", default-features = false }
+embassy-sync = { version = "0.8.0", default-features = false }
+embedded-io = { version = "0.7", default-features = false }
+heapless = { version = "0.9.3", default-features = false }
+rtt-target = { version = "0.6.2", optional = true }
+
+[features]
+controller = ["dep:bl706-hal", "bl706-hal/fpu", "dep:rtt-target"]
+
+[build-dependencies]
+sha2 = "0.11.1"

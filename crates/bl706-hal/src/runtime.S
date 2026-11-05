@@ -32,7 +32,7 @@ _start:
 bl706_vectors:
     .set .Lvector_index, 0
     .rept 80
-    .if (.Lvector_index == {msoft_irq}) || (.Lvector_index == {mtime_irq}) || (.Lvector_index == {adc_irq}) || (.Lvector_index == {uart0_irq}) || (.Lvector_index == {i2c_irq}) || (.Lvector_index == {pwm_irq}) || (.Lvector_index == {timer0_irq}) || (.Lvector_index == {timer1_irq}) || (.Lvector_index == {gpio_irq})
+    .if (.Lvector_index == {msoft_irq}) || (.Lvector_index == {mtime_irq}) || (.Lvector_index == {adc_irq}) || (.Lvector_index == {uart0_irq}) || (.Lvector_index == {i2c_irq}) || (.Lvector_index == {pwm_irq}) || (.Lvector_index == {timer0_irq}) || (.Lvector_index == {timer1_irq}) || (.Lvector_index == {gpio_irq}) || (.Lvector_index == {radio_irq})
     .word bl706_irq_entry
     .else
     .word bl706_fatal_trap

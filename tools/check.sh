@@ -10,6 +10,8 @@ after=$(sha256sum crates/bl706-pac/src/lib.rs)
 test "$before" = "$after" || { echo 'Generated PAC was stale' >&2; exit 1; }
 uv run --no-project tools/check_svd.py
 cargo fmt --all --check
+cargo test --locked -p bl706-ble --target "$(rustc -vV | awk '/^host:/ {print $2}')"
+cargo clippy --locked -p bl706-ble --features controller --target riscv32imfc-unknown-none-elf -Zbuild-std=core -- -D warnings
 cargo test --locked -p bl706-pac --target "$(rustc -vV | awk '/^host:/ {print $2}')"
 rustc --edition 2024 --test crates/bl706-hal/src/i2c_logic.rs -o "$diagnostics/i2c-logic-tests"
 "$diagnostics/i2c-logic-tests"

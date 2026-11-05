@@ -37,6 +37,7 @@ core::arch::global_asm!(
     timer0_irq = const crate::interrupt::TIMER0,
     timer1_irq = const crate::interrupt::TIMER1,
     gpio_irq = const crate::interrupt::GPIO,
+    radio_irq = const crate::interrupt::RADIO,
 );
 
 #[cfg(feature = "flash")]

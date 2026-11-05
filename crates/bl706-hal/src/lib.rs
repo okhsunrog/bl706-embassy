@@ -20,6 +20,7 @@ pub mod i2c;
 pub mod interrupt;
 mod peripheral_logic;
 pub mod pwm;
+pub mod radio;
 pub mod reset;
 mod runtime;
 pub mod time;
@@ -32,6 +33,7 @@ use critical_section::Mutex;
 static TAKEN: Mutex<Cell<bool>> = Mutex::new(Cell::new(false));
 
 pub struct Peripherals {
+    pub radio: radio::RadioToken,
     pub software_interrupt: executor::InterruptToken,
     pub pins: gpio::Pins,
     pub uart0: uart::Uart0Token,
@@ -72,6 +74,7 @@ pub fn init_with_config(config: clock::Config) -> Result<Peripherals, clock::Err
             gpio::init();
             time::init(clocks);
             Ok(Peripherals {
+                radio: radio::RadioToken::new(),
                 software_interrupt: executor::InterruptToken::new(),
                 pins: gpio::Pins::new(),
                 uart0: uart::Uart0Token::new(),
