@@ -72,7 +72,7 @@
       checks = forAll (system: { pac = (env system).pacCheck; firmware = (env system).firmware; });
       devShells = forAll (system:
         let e = env system; in { default = e.pkgs.mkShell {
-          packages = [ e.rust e.chiptool e.pkgs.uv e.pkgs.git e.pkgs.llvm e.pkgs.openocd ];
+          packages = [ e.rust e.chiptool e.pkgs.uv e.pkgs.git e.pkgs.binutils e.pkgs.llvm e.pkgs.openocd ];
           UV_PYTHON_DOWNLOADS = "never";
           UV_PYTHON = "${e.pkgs.python3}/bin/python3";
         }; });
