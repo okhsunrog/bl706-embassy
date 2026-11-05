@@ -39,22 +39,24 @@ panic; they are not reported as successful no-ops.
 
 ## Clocks, memory and startup
 
-Use a 32 MHz crystal reference; the current example uses the validated 144 MHz
-CPU / 72 MHz bus clock profile. Early 32 MHz tests advertised and transferred
-GATT data, but connection establishment also timed out, including without RTT
-polling. The later 144 MHz image, also with pooled entropy, completed three
-connect/read/write/notify/disconnect cycles without those failures. This is
-bring-up evidence, not an isolated proof of the timeout's root cause.
+Use a 32 MHz crystal reference; the example uses the validated 144 MHz CPU /
+72 MHz bus profile. Both the early 32 MHz build and a later 144 MHz build with
+all controller code in XIP had connection/advertising failures. Raising CPU
+frequency alone did not fix the problem. Moving the urgent radio/event paths
+into ITCM completed five reconnect/GATT cycles, and reduced observed ISR maxima
+from about 7 ms to about 1 ms in those runs. This does not prove the root cause
+of every vendor-controller failure or establish a worst-case execution bound.
 
-Keep the controller's `.bleromro` in executable XIP and copy `.bleromrw`,
+The current application copies `.bleromro` and urgent `rwble/rwip/lld/ea` code
+into ITCM. Copy `.bleromrw`,
 `.retention` and `.tcm_data` into initialized RAM. Zero `.retention_noinit` on
 cold startup (the selected archive contains only zeros in that section).
 The ELF audit must reject orphan vendor sections outside these copy/zero ranges.
 
 RF calibration temporarily redirects software IRQ3 and uses
-`0x42024000..0x42028000` as scratch. The standalone image puts live data, BSS
-and its 8 KiB stack in ITCM `0x22014000..0x22020000`, leaving that OCRAM alias
-free. The upper 8 KiB of OCRAM belongs to exchange memory; GLB_EM_8KB is encoded
+`0x42024000..0x42028000` as scratch. The standalone image puts hot code/data/BSS in ITCM
+`0x22014000..0x22020000` and its 8 KiB stack in lower OCRAM
+`0x22020000..0x22022000`, leaving that scratch alias free. The upper 8 KiB of OCRAM belongs to exchange memory; GLB_EM_8KB is encoded
 as `0x3`. This is not a compatible linker layout for an arbitrary application.
 
 The HAL's temporary IRQ3 hook is installed only while the caller exclusively
@@ -82,8 +84,11 @@ connections/disconnections exercised both native ACL directions. These are
 laptop tests, not phone or qualification testing.
 
 Timing instrumentation exposes per-window interrupt, synchronous scheduler and
-firmware-wakeup-to-worker maxima. Initial live-JTAG measurements had millisecond
-outliers; do not infer an application scheduling budget from them. Before
+firmware-wakeup-to-worker maxima. Millisecond outliers also occurred without live JTAG. Initial RTT `Debug`
+formatting masked interrupts inside rprintln's critical section. Application
+logs now format into a local buffer with IRQs enabled, then only copy the line
+under the RTT lock. Do not infer an application scheduling budget from a short
+standalone test. Before
 integrating OLED/PD, measure without debugger traffic and with real UI load,
 then choose the worker's execution priority. The C scheduler has no async yield
 inside a call.
