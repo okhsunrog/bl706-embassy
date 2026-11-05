@@ -69,15 +69,23 @@ cold startup (the selected archive contains only zeros in that section).
 The ELF audit must reject orphan vendor sections outside these copy/zero ranges.
 
 RF calibration temporarily redirects software IRQ3 and uses
-`0x42024000..0x42028000` as scratch. The standalone image puts hot code/data/BSS in ITCM
-`0x22014000..0x22020000` and its 8 KiB stack in lower OCRAM
-`0x22020000..0x22022000`, leaving that scratch alias free. The upper 8 KiB of OCRAM belongs to exchange memory; GLB_EM_8KB is encoded
-as `0x3`. This is not a compatible linker layout for an arbitrary application.
+`0x42024000..0x42028000` as scratch. The original standalone image put hot
+code/data/BSS in ITCM `0x22014000..0x22020000` and its 8 KiB stack in lower
+OCRAM `0x22020000..0x22022000`. The combined Pinecil application retains hot
+code in ITCM, permits data/BSS to extend into lower OCRAM up to `0x22024000`,
+and places its 8 KiB stack at `0x22028000..0x2202a000`. Optional trace buffers
+use `0x2202a000..0x2202e000`. Both arrangements leave RF scratch free.
+The upper 8 KiB (`0x2202e000..0x22030000`) belong to exchange memory;
+GLB_EM_8KB is encoded as `0x3`. The reservation follows the SDK's
+[8 KiB exchange-memory linker rule](https://github.com/bouffalolab/bl_iot_sdk/blob/edcf613f073d3ef7d2f290d7c285b69be35da75b/components/platform/soc/bl702/bl702/evb/ld/flash.ld#L5).
+An arbitrary application's linker layout must not be assumed compatible.
 
 The HAL's temporary IRQ3 hook is installed only while the caller exclusively
 borrows the unused software-interrupt token. RF restores the hook before an
 InterruptExecutor may start. Later attempts to register a calibration handler
 fail explicitly. Radio IRQ72 is independent of that software executor.
+Pinecil completes RF initialization before configuring ADC/I2C and starting its
+PD interrupt executor. Its BLE controller worker remains on the thread executor.
 
 TRNG is polled with a finite timeout in thread context and supplies a pool of
 fresh words. IRQ-side random requests only pop a word in a short critical
