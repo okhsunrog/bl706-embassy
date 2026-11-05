@@ -11,9 +11,31 @@ pub enum Root {
     Dll96m(Reference),
     Dll144m(Reference),
 }
+/// Serial-flash clock only; command, data width and sampling remain board-owned.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FlashClock {
+    Xclk8m,
+    /// DLL96M / 2. Requires a DLL root and a flash/timing profile rated for 48 MHz.
+    Dll48m,
+}
+impl FlashClock {
+    pub(crate) const fn register_bits(self) -> u32 {
+        match self {
+            Self::Xclk8m => 0x4300,
+            Self::Dll48m => 0x3100,
+        }
+    }
+    pub const fn hz(self) -> u32 {
+        match self {
+            Self::Xclk8m => 8_000_000,
+            Self::Dll48m => 48_000_000,
+        }
+    }
+}
 #[derive(Clone, Copy, Debug)]
 pub struct Config {
     pub root: Root,
+    pub flash_clock: FlashClock,
     /// Actual divisors, 1..=256. BCLK is divided from FCLK/CPU.
     pub cpu_divider: u16,
     pub bus_divider: u16,
@@ -24,6 +46,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             root: Root::Rc32m,
+            flash_clock: FlashClock::Xclk8m,
             cpu_divider: 1,
             bus_divider: 1,
             xtal_capcode_in: 33,
@@ -35,6 +58,7 @@ impl Config {
     pub fn pinecil_v2_144mhz() -> Self {
         Self {
             root: Root::Dll144m(Reference::Xtal32m),
+            flash_clock: FlashClock::Dll48m,
             bus_divider: 2,
             ..Self::default()
         }
@@ -56,9 +80,14 @@ impl Config {
         let bus = cpu / u32::from(self.bus_divider);
         if root % u32::from(self.cpu_divider) != 0
             || cpu % u32::from(self.bus_divider) != 0
-            || cpu > 160_000_000
+            || cpu > 144_000_000
             || !(1_000_000..=80_000_000).contains(&bus)
             || bus % 1_000_000 != 0
+        {
+            return Err(Error::InvalidConfig);
+        }
+        if self.flash_clock == FlashClock::Dll48m
+            && !matches!(self.root, Root::Dll96m(_) | Root::Dll144m(_))
         {
             return Err(Error::InvalidConfig);
         }
@@ -66,6 +95,7 @@ impl Config {
             cpu,
             bus,
             root: self.root,
+            flash_clock: self.flash_clock,
         })
     }
     pub(crate) fn uses_xtal(self) -> bool {
@@ -94,6 +124,7 @@ pub struct Clocks {
     cpu: u32,
     bus: u32,
     root: Root,
+    flash_clock: FlashClock,
 }
 impl Clocks {
     pub const fn cpu_hz(self) -> u32 {
@@ -101,6 +132,9 @@ impl Clocks {
     }
     pub const fn bus_hz(self) -> u32 {
         self.bus
+    }
+    pub const fn flash_hz(self) -> u32 {
+        self.flash_clock.hz()
     }
     pub const fn uart_hz(self) -> u32 {
         self.cpu
@@ -235,6 +269,27 @@ mod tests {
             .root_encoding(),
             2
         );
+    }
+    #[test]
+    fn flash_clock_requires_a_running_dll_and_preserves_slow_default() {
+        assert_eq!(Config::default().plan().unwrap().flash_hz(), 8_000_000);
+        assert_eq!(
+            Config::pinecil_v2_144mhz().plan().unwrap().flash_hz(),
+            48_000_000
+        );
+        for root in [Root::Rc32m, Root::Xtal32m] {
+            assert!(
+                Config {
+                    root,
+                    flash_clock: FlashClock::Dll48m,
+                    ..Config::default()
+                }
+                .plan()
+                .is_err()
+            );
+        }
+        assert_eq!(FlashClock::Xclk8m.register_bits(), 0x4300);
+        assert_eq!(FlashClock::Dll48m.register_bits(), 0x3100);
     }
     #[test]
     fn watchdog_rounds_up_and_rejects_unrepresentable_timeouts() {

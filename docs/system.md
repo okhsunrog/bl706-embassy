@@ -1,8 +1,8 @@
 # Clocks, watchdog and reset
 
-No profile has run on a board. Rates are calculated from selected sources and
-dividers, not measured or confirmed stable. All examples remain RAM ELF files,
-without a boot image or XIP startup.
+Clock rates below describe selected sources and dividers. Physical validation
+is board-specific; see [validation.md](validation.md) and the consuming firmware's
+hardware results. Both RAM and flash/XIP startup are supported.
 
 ## Clocks
 
@@ -29,10 +29,13 @@ let p = bl706_hal::init_with_config(
 The implementation follows the SDK's **DLL** terminology and `GLB_Power_On_DLL`;
 the RM uses PLL terminology for this clock path. It does not implement a separate
 audio/RF PLL. Actual CPU/BCLK divisors 1..256 encode as N−1. Plans require exact
-integer division, CPU <=160 MHz and BCLK <=80 MHz per SDK, and BCLK >=1 MHz in
+integer division, CPU <=144 MHz (the device's rated maximum), BCLK <=80 MHz, and BCLK >=1 MHz in
 integer MHz for the time driver. Arbitrary fractional rates are unsupported.
 
-Initialization selects RC32M before configuring XTAL/DLL. Default XTAL cap codes
+Initialization first moves serial flash to XCLK / 4 (8 MHz), then selects RC32M
+before configuring XTAL/DLL. This also handles a warm entry that inherits
+DLL-clocked XIP: the DLL must not be switched off while flash still uses it.
+Default XTAL cap codes
 33/33 come from the Pinecil BSP and are configurable. The SDK settling delay follows
 the cap-code write. XTAL_RDY is polled at most 120 times with finite nominal RC32M
 delays. DLL power/reset/settling and output enables follow the SDK; no documented
@@ -47,8 +50,18 @@ waveforms and OCRAM correctness still require hardware validation.
 `Clocks` supplies UART, PWM and TIMER rates. I²C derives four equal phases from BCLK,
 rounding down to a nominal bus rate <=100 kHz. `mtime` divides BCLK to 1 MHz so
 Embassy deadlines and peripheral timeouts do not speed up with the CPU.
-ADC uses XCLK32M / 4 / 4 = 2 MHz; SF_CTRL uses XCLK / 4 = 8 MHz. UART selects FCLK,
+ADC uses XCLK32M / 4 / 4 = 2 MHz. UART selects FCLK,
 not XCLK, and its divider is recalculated for DLL roots.
+
+`Config::flash_clock` defaults to `FlashClock::Xclk8m`. The Pinecil 144 MHz
+profile selects `FlashClock::Dll48m` (DLL96M / 2), matching the official SDK's
+[flash clock setup](https://github.com/bouffalolab/bl_iot_sdk/blob/edcf613f073d3ef7d2f290d7c285b69be35da75b/components/platform/hosal/bl702_hal/bl_sys.c#L328).
+The planner rejects this option without a DLL root. `Clocks::flash_hz()` reports
+the selected rate. Board code/ROM must supply flash commands and sampling timing
+appropriate to that frequency. Data width is independent of clock frequency.
+Clock changes execute entirely in ITCM, with interrupts masked and no flash
+fetches or stack accesses while the flash clock is disabled. The RAM-only flash
+programming driver still temporarily selects its own conservative 8 MHz clock.
 
 Init explicitly powers RC32K, selects it for F32K and waits the SDK startup delay
 of more than 800 us. It retains the boot trim; no eFuse reload or programming occurs.
