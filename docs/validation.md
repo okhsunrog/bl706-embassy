@@ -1,5 +1,9 @@
 # Local validation
 
+2026-11-05: the full offline suite passed after adding a bounded BUS_BUSY idle
+wait before starting I2C packets. The cancellation hardware regression and its
+before/after results are recorded in [i2c.md](i2c.md#cancellation-hardware-regression-2026-11-05).
+
 2026-11-04, x86_64-linux/NixOS. Host checks and the first BL706 RAM heartbeat
 are recorded separately below; broader peripheral validation remains pending.
 

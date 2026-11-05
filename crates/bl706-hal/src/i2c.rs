@@ -1,6 +1,8 @@
 //! IRQ-driven, cancellation-safe BL70x I2C master for register devices/FUSB302.
 //! Supports one packet (1..=256 bytes), or write(1..=4)+read using sub-address
 //! hardware for repeated START. Unsupported transaction shapes fail before I/O.
+//! A new packet waits, with a timeout, for BUS_BUSY to settle after cancellation;
+//! this is controller cleanup, not recovery from a physically stuck SDA/SCL.
 use crate::{
     clock::Clocks,
     gpio::{Pin, Pull},
@@ -9,7 +11,7 @@ use crate::{
 use core::{cell::RefCell, future::poll_fn, task::Poll};
 use critical_section::Mutex;
 use embassy_sync::waitqueue::AtomicWaker;
-use embassy_time::{Duration, with_timeout};
+use embassy_time::{Duration, Timer, with_timeout};
 use embedded_hal::i2c::{ErrorKind, ErrorType, NoAcknowledgeSource, Operation};
 
 #[path = "i2c_logic.rs"]
@@ -136,6 +138,18 @@ impl I2c {
         if !(1..=logic::MAX_PACKET).contains(&len) || sub.len() > 4 {
             return Err(Error::Unsupported);
         }
+        // Disabling the master in a cancelled future does not synchronously
+        // clear STS_I2C_BUS_BUSY. Starting another packet immediately can
+        // observe this transient even though the owned transfer is idle.
+        // Yield until the controller releases the bus, with the same bounded
+        // timeout as a packet. This does not recover a physically stuck bus.
+        with_timeout(self.timeout, async {
+            while pac::I2C.i2c_bus_busy().read().sts_i2c_bus_busy() {
+                Timer::after_micros(10).await;
+            }
+        })
+        .await
+        .map_err(|_| Error::Timeout)?;
         let guard = critical_section::with(|cs| {
             let mut transfer = TRANSFER.borrow(cs).borrow_mut();
             // A forgotten future can leave an owned packet running. Never
