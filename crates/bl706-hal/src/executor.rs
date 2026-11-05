@@ -57,16 +57,17 @@ impl Executor {
 
 /// Executor polled by machine software interrupt 3, preempting thread tasks.
 ///
-/// The runtime does not nest interrupts. Each task poll must be short and must
-/// never block waiting for another task or an ISR. Use async I/O and a mutex
+/// Peripheral interrupts preempt this executor at a higher CLIC level. Each task
+/// poll must still be short and must never block waiting for another task.
+/// Use async I/O and a mutex
 /// with CriticalSectionRawMutex when sharing peripherals with thread tasks.
-/// Interrupts, including I2C FIFO service, resume after each executor poll.
 /// The IRQ uses the interrupted thread's stack and saves the full FPU context.
 pub struct InterruptExecutor {
     inner: UnsafeCell<MaybeUninit<raw::Executor>>,
 }
 // SAFETY: initialization is protected by a critical section and consumes the
-// unique IRQ token. Only the non-nested software ISR polls the raw executor;
+// unique IRQ token. Only the software ISR polls the raw executor; its CLIC level
+// prevents software-IRQ reentry, including while a peripheral ISR wakes it.
 // other contexts receive only SendSpawner, which enforces Send task futures.
 unsafe impl Sync for InterruptExecutor {}
 
@@ -121,6 +122,7 @@ pub(crate) fn on_interrupt() {
     let executor = critical_section::with(|cs| INTERRUPT_EXECUTOR.borrow(cs).get())
         .expect("software interrupt without executor");
     // SAFETY: the IRQ is unmasked only after start publishes initialized state.
-    // MIE is cleared by IRQ entry and stays cleared, so this cannot reenter.
+    // A second software IRQ has the same CLIC level and cannot preempt this
+    // handler. Higher-level peripheral ISRs can only wake it, never poll it.
     unsafe { (&*executor.inner.get()).assume_init_ref().poll() };
 }

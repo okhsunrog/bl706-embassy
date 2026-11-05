@@ -27,9 +27,14 @@ pub(crate) unsafe fn init() {
         for n in 0..80 {
             write_volatile((BASE + 0x400 + n) as *mut u8, 0);
             write_volatile((BASE + n) as *mut u8, 0);
-            write_volatile((BASE + 0x800 + n) as *mut u8, 0);
+            // One level bit: peripherals at level 255; software IRQ at 127.
+            // Low unimplemented CFG bits read as ones on this older CLIC.
+            write_volatile((BASE + 0x800 + n) as *mut u8, 0x80);
         }
-        write_volatile((BASE + 0xc00) as *mut u8, 0);
+        write_volatile((BASE + 0x800 + usize::from(MSOFT)) as *mut u8, 0);
+        // E24 manual 8.7.8: nlBits=1 in bits[4:1], nvBits=nmBits=0.
+        write_volatile((BASE + 0xc00) as *mut u8, 2);
+        crate::io_fence();
     }
 }
 

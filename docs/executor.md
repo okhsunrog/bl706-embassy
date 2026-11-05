@@ -26,11 +26,18 @@ the raw executor or software handler from another context.
 
 ## Scheduling and shared state
 
-This runtime does **not nest interrupts**. The software executor preempts
-thread tasks, but its polls temporarily delay all other ISRs. Keep polls short,
-use async I/O, and never spin waiting for an ISR or another task. In particular,
-BL706 I2C has a two-word FIFO; moving a long CPU operation into an interrupt
-does not make that operation safe during an active I2C transfer.
+The CLIC uses one level bit (`cliccfg.nlBits=1`): the software executor runs at
+level 127 and all peripheral handlers run at level 255. The runtime saves mepc,
+mcause (including MPIL), mstatus and FP state before enabling MIE **only** for
+the software handler. Peripheral ISRs can preempt PD, but cannot nest each other;
+the software executor cannot reenter itself. Before returning, the handler masks
+MIE and restores its saved return state. This follows E24 manual sections 8.4.1
+and 8.7.8; see [sources](sources.md).
+
+Keep polls short, use async I/O, and never spin waiting for another task. I2C
+has a two-word FIFO: a non-preemptible software handler delayed its service and
+caused OLED FIFO errors in the application even at 5 V. Higher-level peripheral
+preemption is required for this use case. Long critical sections still block it.
 
 Use `CriticalSectionRawMutex` for Embassy synchronization shared with thread
 mode. `NoopRawMutex`, blocking waits and shared `RefCell` state without interrupt
@@ -40,7 +47,8 @@ that can starve thread mode even when each individual poll is short.
 
 The interrupt shares the thread's stack, including the 224-byte IRQ frame.
 With `fpu`, the existing entry/exit code saves and restores all 32 single
-precision FP registers, FCSR and mstatus. No A-extension instructions are used.
+precision FP registers, FCSR and mstatus at both interrupt levels. No A-extension
+instructions are used.
 
 ## Validation
 
@@ -56,5 +64,11 @@ On 2026-11-05, the IMFC RAM example completed 113 consecutive rounds on Pinecil
 V2, with 31 successful I2C reads during each non-yielding thread interval.
 Mutex exclusion, wakeup on thread unlock, timer wakeups, ft11 and FCSR checks
 all passed. The 35-second host command was stopped deliberately; no panic or
-I2C failure appeared. This tests the executor port, not PD scheduling under OLED
-load; integration in the application remains a separate hardware check.
+I2C failure appeared.
+
+The preemptible version then completed 64 rounds with 48 reads per busy-thread
+interval. Its software task additionally stalled *inside* the first I2C future
+poll: peripheral ISRs had to drain the FIFO while the software handler was still
+running. FP checks passed in both thread and software-interrupt busy loops.
+This tests the executor port, not PD scheduling under OLED load; integration in
+the application remains a separate hardware check.

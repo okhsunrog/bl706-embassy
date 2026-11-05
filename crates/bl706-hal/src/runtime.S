@@ -76,7 +76,7 @@ bl706_default_trap:
 
 .balign 4
 bl706_irq_entry:
-    # 224-byte, 16-aligned frame: integer caller-saved regs, mstatus, FCSR, FPRs.
+    # 224-byte, 16-aligned frame: caller-saved regs, FCSR/mstatus/mepc/mcause, FPRs.
     addi sp, sp, -224
     sw ra, 0(sp)
     sw t0, 4(sp)
@@ -96,13 +96,31 @@ bl706_irq_entry:
     sw t6, 60(sp)
     csrr t0, mstatus
     sw t0, 68(sp)
+    csrr t0, mepc
+    sw t0, 72(sp)
+    csrr t0, mcause
+    sw t0, 76(sp)
     FP_SAVE
     csrr a0, mcause
     andi a0, a0, 0xff
+    # Only the low-level software executor permits nesting. All peripheral
+    # handlers stay at the higher CLIC level with MIE cleared. Equal-level
+    # software interrupts cannot reenter an active executor poll.
+    li t0, 3
+    bne a0, t0, 4f
+    csrsi mstatus, 8
+4:
     call bl706_irq_dispatch
+    csrci mstatus, 8
     FP_RESTORE
+    lw t0, 72(sp)
+    csrw mepc, t0
     lw t0, 68(sp)
     csrw mstatus, t0
+    # In CLIC mode mcause includes MPIL (the interrupted level). mret uses it
+    # to return to the software handler after a peripheral ISR, then thread.
+    lw t0, 76(sp)
+    csrw mcause, t0
     lw ra, 0(sp)
     lw t0, 4(sp)
     lw t1, 8(sp)

@@ -2,7 +2,10 @@
 #![no_std]
 #![no_main]
 use bl706_hal::portable_atomic::{AtomicU32, Ordering::Relaxed};
-use core::fmt::Write;
+use core::{
+    fmt::Write,
+    future::{Future, poll_fn},
+};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embassy_time::Timer;
 use pinecil_v2_bringup::{Logger, banner, board};
@@ -22,7 +25,22 @@ async fn irq_check(mut i2c: bl706_hal::i2c::I2c) {
         // while thread mode remains deliberately busy. These registers do not
         // clear events, pop PD packets, or change the PHY's configuration.
         let mut registers = [0; 9];
-        i2c.write_read(0x22, &[1], &mut registers).await.unwrap();
+        {
+            let mut transfer = core::pin::pin!(i2c.write_read(0x22, &[1], &mut registers));
+            let mut stalled = false;
+            poll_fn(|cx| {
+                let result = transfer.as_mut().poll(cx);
+                if result.is_pending() && !stalled {
+                    stalled = true;
+                    // Deliberately keep a software-IRQ poll running while the
+                    // hardware I2C and timer handlers must preempt it.
+                    busy(50_000);
+                }
+                result
+            })
+            .await
+            .unwrap();
+        }
         assert_eq!(registers[0], 0x81);
         #[cfg(feature = "fpu")]
         unsafe {
@@ -44,7 +62,7 @@ async fn irq_check(mut i2c: bl706_hal::i2c::I2c) {
 
 /// A single asm block keeps the FP probe live across actual IRQ preemption.
 /// No Rust call or await can accidentally save it on behalf of the runtime.
-fn busy() {
+fn busy(iterations: u32) {
     #[cfg(feature = "fpu")]
     {
         let bits: u32;
@@ -56,7 +74,7 @@ fn busy() {
                 "fmv.x.w {bits}, ft11", "frcsr {fcsr}", "fscsr zero",
                 value = in(reg) 0x4050_0000u32,
                 expected_fcsr = in(reg) 0x60u32,
-                count = inout(reg) 1_000_000u32 => _,
+                count = inout(reg) iterations => _,
                 bits = lateout(reg) bits,
                 fcsr = lateout(reg) fcsr,
                 out("ft11") _,
@@ -70,7 +88,7 @@ fn busy() {
     unsafe {
         core::arch::asm!(
             "2:", "addi {count}, {count}, -1", "bnez {count}, 2b",
-            count = inout(reg) 1_000_000u32 => _,
+            count = inout(reg) iterations => _,
             options(nostack),
         );
     }
@@ -84,12 +102,12 @@ async fn thread_check(mut log: Logger, mut heater_off: bl706_hal::gpio::Output<2
         heater_off.set_low();
         let guard = LOCK.lock().await;
         let before = READS.load(Relaxed);
-        busy();
+        busy(1_000_000);
         assert_eq!(READS.load(Relaxed), before, "mutex exclusion failed");
         // Unlock must wake the IRQ executor from thread mode. The following
         // busy loop gives it no cooperation from the thread executor.
         drop(guard);
-        busy();
+        busy(1_000_000);
         let reads = READS.load(Relaxed).wrapping_sub(before);
         assert!(
             reads >= 2,

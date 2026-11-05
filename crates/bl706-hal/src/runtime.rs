@@ -1,4 +1,5 @@
-//! RAM startup and non-nested CLIC trampolines. FPU builds preserve all f0..f31.
+//! RAM startup and CLIC trampolines. Only the software executor permits higher
+//! level peripheral preemption. FPU builds preserve all f0..f31 at each level.
 
 /// Last fatal trap (also usable before UART initialization), inspect with GDB.
 #[repr(C)]

@@ -4,6 +4,8 @@
 and an IMFC hardware regression: 113 rounds of thread preemption, timer/I2C
 wakeups, async mutex exclusion/unlock and interrupted ft11/FCSR preservation.
 Each busy-thread interval completed 31 nine-byte FUSB302 reads in the IRQ task.
+The preemptible port additionally passed 64 rounds with 48 reads per interval,
+including I2C FIFO progress during a deliberately stalled software-handler poll.
 This result does not establish USB-PD stability in an application.
 
 2026-11-05: the full offline suite passed after adding a bounded BUS_BUSY idle

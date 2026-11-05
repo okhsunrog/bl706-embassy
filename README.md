@@ -106,7 +106,8 @@ HAL invariants; do not mix direct PAC writes with an active HAL driver.
 ## Scope and limitations
 
 - One hart, M-mode, a spinning thread executor and one software interrupt executor.
-  No nested interrupts or sleep support; interrupt task polls must be short.
+  Peripheral handlers preempt the software executor; other IRQ nesting and sleep
+  are unsupported. Interrupt task polls and critical sections must stay short.
 - Init-time RC32M, XTAL32M and DLL96/144M profiles; frequencies are nominal, not measured.
   No live clock switching, application XIP execution, RF, USB or DMA support.
   Flash boot uses a small XIP stub followed by execution entirely from RAM.
