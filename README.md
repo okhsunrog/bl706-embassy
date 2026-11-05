@@ -1,5 +1,7 @@
 # BL706 PAC and Embassy bring-up
 
+[![CI](https://github.com/okhsunrog/bl706-embassy/actions/workflows/ci.yml/badge.svg)](https://github.com/okhsunrog/bl706-embassy/actions/workflows/ci.yml)
+
 Initial Bouffalo Lab BL702/704/706 support, targeting **Pinecil V2 / BL706**.
 Hardware bring-up is in progress; startup, clocks and peripheral drivers still need
 board validation. This is a research foundation; it does not yet implement a complete
@@ -61,6 +63,10 @@ nix flake check
 
 The Nix checks build IMC firmware and regenerate the PAC for a byte comparison.
 `tools/check.sh` additionally checks IMFC/build-std and the atomic diagnostic binary.
+GitHub Actions runs that complete suite on pushes and pull requests: pinned PAC
+regeneration, `rustfmt`, host tests, IMC/IMFC builds, `clippy -D warnings`, ELF
+audits and boot-header tests. The generator uses the same pinned source and
+lockfile as the Nix package. Hardware tests remain separate from CI.
 
 | Configuration | Target | ABI | IRQ FP context |
 |---|---|---|---|
