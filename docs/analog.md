@@ -133,9 +133,13 @@ or calibration. The ambiguous source-code3 XTAL/PLL32M path is not exposed.
 
 Compare values are written as given. SDK init subtracts two ticks in some cases,
 while its setter writes raw values. This ambiguity is explicit: measure actual
-intervals/preload boundaries. `counter` follows SDK capture request plus three TCVWR
-reads. RM marks TCVWR RO, but SDK requires a write, so the PAC leaves it RW with an
-explanation. Stop does not promise counter reset; count/preload/restart need HIL.
+intervals/preload boundaries. `counter` reads the continuously synchronized
+TCVSYN2/3 register. The SDK's TCVWR capture request plus three APB reads returned
+the previous latch on the BL706 at CPU 144 MHz and TIMER0 1 MHz. A second pulse
+was armed at comparator 2046 while the counter had passed 30000; its new capture
+latch later contained 30245. Three APB reads are not a capture-completion
+handshake. TCVSYN avoids that request and may lag by clock-domain latency.
+Stop does not promise counter reset; count/preload/restart need HIL.
 A compare already behind count can wait until rollover, rather than matching at once.
 
 `Timer<N>` supplies start/stop/configure/set_compare/listen/take_events. Without a

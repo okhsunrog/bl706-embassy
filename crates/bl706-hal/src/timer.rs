@@ -179,14 +179,16 @@ impl<const N: u8> Timer<N> {
     pub fn is_running(&self) -> bool {
         rw(0x84).read() & (1 << (N + 1)) != 0
     }
-    /// Captured count, following SDK request + three reads, not direct TCR access.
+    /// Continuously synchronized count, not the asynchronous TCR or a previous
+    /// capture latch. TCVWR request + three APB reads can still return the old
+    /// latch when the timer clock is divided; there is no capture-ready flag.
+    /// The synchronized sample may lag the counter by clock-domain latency.
     pub fn counter(&mut self) -> u32 {
-        let reg = rw(0xa8 + usize::from(N) * 4);
-        reg.write_value(1);
-        crate::io_fence();
-        let _ = reg.read();
-        let _ = reg.read();
-        reg.read()
+        if N == 0 {
+            pac::TIMER.TCVSYN2().read().0
+        } else {
+            pac::TIMER.TCVSYN3().read().0
+        }
     }
     pub fn clock_hz(&self) -> u32 {
         let source = match self.config.clock {
