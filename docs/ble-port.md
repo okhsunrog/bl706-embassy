@@ -47,6 +47,21 @@ into ITCM completed five reconnect/GATT cycles, and reduced observed ISR maxima
 from about 7 ms to about 1 ms in those runs. This does not prove the root cause
 of every vendor-controller failure or establish a worst-case execution bound.
 
+A subsequent [hardware investigation](https://github.com/okhsunrog/pinecil-rs/blob/970856947222507c8bb9d60533fca97d6ac56c5f/docs/ble-forensics.md)
+established a persistent missed-timer failure: an expired fine-timer target
+stopped radio interrupts while the Embassy heartbeat continued. Re-arming only
+that hardware timer restored GATT without resetting the controller. A one-shot
+late-store injection reproduced it with hot code in ITCM; a slower-SPI test also
+captured a naturally late store. These results identify a failure mechanism,
+not a proof about every historical timeout.
+
+CPU and flash clocks are separate. The application's conservative header leaves
+single-SPI reads at 8 MHz; this HAL's 144 MHz CPU profile does not increase that
+flash clock. The inspected C SDK configures SPI at 48 MHz. An adapted Pinecil
+C/FreeRTOS fixture using the identical controller/RF pair completed ten
+connect/read/disconnect cycles and 120 ATT reads. Keep code placement, flash
+frequency, cache size and logging overhead explicit in runtime comparisons.
+
 The current application copies `.bleromro` and urgent `rwble/rwip/lld/ea` code
 into ITCM. Copy `.bleromrw`,
 `.retention` and `.tcm_data` into initialized RAM. Zero `.retention_noinit` on
