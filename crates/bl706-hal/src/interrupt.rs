@@ -2,6 +2,7 @@
 use core::ptr::{read_volatile, write_volatile};
 pub const MSOFT: u8 = 3;
 pub const MTIME: u8 = 7;
+pub const UART0: u8 = 45;
 pub const I2C: u8 = 48;
 pub const GPIO: u8 = 60;
 pub const ADC: u8 = 25;
@@ -68,6 +69,7 @@ extern "C" fn bl706_irq_dispatch(number: usize) {
         3 => crate::executor::on_interrupt(),
         7 => crate::time::on_interrupt(),
         25 => crate::adc::on_interrupt(),
+        45 => crate::uart::on_interrupt(),
         48 => crate::i2c::on_interrupt(),
         49 => crate::pwm::on_interrupt(),
         52 => crate::timer::on_interrupt(0),

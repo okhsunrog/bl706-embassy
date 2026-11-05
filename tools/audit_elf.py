@@ -81,7 +81,7 @@ def audit(path, fpu=False, probes=False):
     sh = sections[".vectors"]
     vectors = struct.unpack_from("<80I", data, sh[4])
     assert sh[5] == 320
-    irq_sources = (3,7,25,48,49,52,53,60)
+    irq_sources = (3,7,25,45,48,49,52,53,60)
     assert all(vectors[i] == syms["bl706_irq_entry"] for i in irq_sources)
     assert all(v == syms["bl706_fatal_trap"] for i,v in enumerate(vectors) if i not in irq_sources)
     atomic = []
@@ -126,8 +126,8 @@ if __name__ == "__main__":
             audit(ROOT/"target/riscv32imc-unknown-none-elf/release"/binary)
         sys.exit(0)
     for target, fpu, names in [
-        ("riscv32imc-unknown-none-elf", False, ["heartbeat", "display", "fusb302", "i2c_latency", "interrupt_executor", "gpio_irq", "analog", "sampling", "system", "flash_probe"]),
-        ("riscv32imfc-unknown-none-elf", True, ["heartbeat", "display", "fusb302", "i2c_latency", "interrupt_executor", "gpio_irq", "analog", "sampling", "system", "flash_probe", "fpu"]),
+        ("riscv32imc-unknown-none-elf", False, ["heartbeat", "display", "fusb302", "i2c_latency", "interrupt_executor", "gpio_irq", "analog", "sampling", "system", "flash_probe", "uart_async"]),
+        ("riscv32imfc-unknown-none-elf", True, ["heartbeat", "display", "fusb302", "i2c_latency", "interrupt_executor", "gpio_irq", "analog", "sampling", "system", "flash_probe", "uart_async", "fpu"]),
     ]:
         for binary in names:
             audit(ROOT/"target"/target/"release"/binary, fpu=fpu)

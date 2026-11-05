@@ -1,5 +1,10 @@
 # Local validation
 
+2026-11-05: async UART0 TX/RX passed the full offline `tools/check.sh` suite,
+including ten new host tests, the concurrent `uart_async` example on IMC/IMFC,
+clippy and the IRQ45 vector/ELF audits. No UART hardware tests were performed.
+See [UART](uart.md) for FIFO/cancellation limits and the pending board checks.
+
 2026-11-05: the [interrupt executor](executor.md) passed the full offline suite
 and an IMFC hardware regression: 113 rounds of thread preemption, timer/I2C
 wakeups, async mutex exclusion/unlock and interrupted ft11/FCSR preservation.
@@ -30,20 +35,21 @@ and async I²C writes, without extending the acceptance claims for other drivers
 | `cargo fmt --all --check` | Pass |
 | Host PAC build/test/doc-test | Builds; generated PAC has no unit tests |
 | Host I²C engine | 10 tests: all TX/RX lengths1..256 without waiter polls, bounded service, END/error/late-word races, cancel/stale IRQ/reuse, caller-storage independence |
+| Host UART engine | 10 tests: partial FIFO transfers, early/arming-race RX, one-shot IRQ, independent TX/RX cancellation, errors/reuse, empty buffers, baud bounds and flush FIFO threshold |
 | Host GPIO engine | 7 tests: all32 mode fields, levels/edges, early events, level/unmask race, multiple pins, cancel/stale IRQ/rearm |
 | Host ADC/PWM/TIMER | 10 tests: scans1..12, errors/tags/extra/cancel/reuse, restart gate, packing/resolution, all4096 trims/parity/sign/clamp, PWM/TIMER bounds and shared fields |
 | Host clocks/watchdog | 4 tests: rate plans, mux encodings, bounds, timeout rounding |
 | Host NOR engine | 8 tests: region/ID/bounds/alignment, command encoding, page splitting, program/erase/readback, preconditions/protection, persistent pending, timeout/poison |
-| IMC release | heartbeat, display, fusb302, i2c_latency, interrupt_executor, gpio_irq, analog, sampling, system, flash_probe and isolated atomics link |
-| IMFC release/build-std=core | Same ten normal examples plus fpu link |
+| IMC release | heartbeat, display, fusb302, i2c_latency, interrupt_executor, gpio_irq, analog, sampling, system, flash_probe, uart_async and isolated atomics link |
+| IMFC release/build-std=core | Same eleven normal examples plus fpu link |
 | Clippy `-D warnings` | IMC with atomic-probe and IMFC with fpu pass; generated PAC permits standard generator lints |
-| ELF32 layout | RAM bounds, VMA=LMA, entry,8 KiB stack,80-entry vector table/handlers3/7/25/48/49/52/53/60,64-byte mtvec/mtvt alignment, ABI |
+| ELF32 layout | RAM bounds, VMA=LMA, entry,8 KiB stack,80-entry vector table/handlers3/7/25/45/48/49/52/53/60,64-byte mtvec/mtvt alignment, ABI |
 | Clock/flash placement | Both clock-latch functions in ITCM; four compile-only flash wrappers retained in RAM |
-| Instruction encodings | No A opcodes in21 normal ELF files; exactly3 labelled probes in atomics; no FP in IMC; all32 FPR spills/reloads in IMFC |
+| Instruction encodings | No A opcodes in23 normal ELF files; exactly3 labelled probes in atomics; no FP in IMC; all32 FPR spills/reloads in IMFC |
 
 The complete `tools/check.sh` suite also passes after replacing example UART
 output with nonblocking RTT (4 KiB up-channel 0). The HAL UART driver remains
-available, but the examples no longer initialize GPIO22 for logging. Host checks
+available; only `uart_async` initializes GPIO22/23 for external UART traffic. Host checks
 and ELF audits alone do not establish runtime behavior. Initial build logs are kept under
 `/home/okhsunrog/tmp_zfs/codex_tmp/bl706/first-hardware/`.
 

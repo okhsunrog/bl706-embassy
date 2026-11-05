@@ -11,12 +11,14 @@ The workspace contains:
 
 - `bl706-pac`: the official SVD register blocks, generated with **chiptool** and
   reproducible corrections. Only the documented subset has been audited.
-- `bl706-hal`: RAM startup, configurable RC/XTAL/DLL clocks, GPIO, UART0 TX, CLIC,
+- `bl706-hal`: RAM startup, configurable RC/XTAL/DLL clocks, GPIO, blocking UART0 TX
+  and interrupt-driven async UART0 TX/RX, CLIC,
   Embassy executor/time driver, interrupt-driven async I²C/ADC, PWM, TIMER0/1,
   watchdog, reset and a RAM-only blocking/async NOR flash driver.
 - `examples/pinecil-v2`: peripheral probes, a sampling cycle with no heater output,
   clock/watchdog diagnostics, a read-only flash probe, FPU and isolated atomic probes.
-  All examples log over RTT channel 0 (4 KiB, nonblocking); no UART wiring is needed.
+  All examples log over RTT channel 0 (4 KiB, nonblocking). Only `uart_async`
+  additionally uses external UART wiring.
 
 ## Build
 
@@ -57,7 +59,7 @@ have an isolated Nix build with vendored Cargo dependencies:
 
 ```sh
 nix build .#firmware
-# result/bin/{heartbeat,display,fusb302,i2c_latency,interrupt_executor,gpio_irq,analog,sampling,system,flash_probe}.elf
+# result/bin/{heartbeat,display,fusb302,i2c_latency,interrupt_executor,gpio_irq,analog,sampling,system,flash_probe,uart_async}.elf
 nix flake check
 ```
 
@@ -122,7 +124,9 @@ HAL invariants; do not mix direct PAC writes with an active HAL driver.
   region and explicit device-ID check. It requires a RAM-only execution and board/SPI
   contract; the actual flash chip is unknown. The default probe only reads.
   No storage format, wear leveling or XIP restoration; see [flash](docs/flash.md).
-- UART0 driver: TX on GPIO22; no RX support. Examples use RTT instead.
+- UART0: blocking TX plus async 8N1 TX/RX on GPIO22/23, split halves and
+  `embedded-io-async` traits. RX uses only the hardware FIFO; no DMA/flow control.
+  UART hardware validation remains pending. See [UART](docs/uart.md).
 - GPIO inputs/outputs and all five interrupt-driven async `Wait` modes, with cancellation.
   FUSB302 INT_N is GPIO16; no debounce or deep-sleep wakeup. See [GPIO](docs/gpio.md).
 - ADC: finite single-ended scans of 1..12 entries on GPIO18/19/20 and GND,

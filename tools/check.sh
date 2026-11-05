@@ -13,6 +13,8 @@ cargo fmt --all --check
 cargo test --locked -p bl706-pac --target "$(rustc -vV | awk '/^host:/ {print $2}')"
 rustc --edition 2024 --test crates/bl706-hal/src/i2c_logic.rs -o "$diagnostics/i2c-logic-tests"
 "$diagnostics/i2c-logic-tests"
+rustc --edition 2024 --test crates/bl706-hal/src/uart_logic.rs -o "$diagnostics/uart-logic-tests"
+"$diagnostics/uart-logic-tests"
 rustc --edition 2024 --test crates/bl706-hal/src/gpio_irq.rs -o "$diagnostics/gpio-irq-tests"
 "$diagnostics/gpio-irq-tests"
 rustc --edition 2024 --test crates/bl706-hal/src/peripheral_logic.rs -o "$diagnostics/peripheral-tests"

@@ -55,7 +55,8 @@ manufacturer specification verified here. The official SVD remains the generatio
   fields. GPIO_INT_CLR1's earlier WO annotation was corrected to RW per RM and SDK
   1→0 pulse; second STAT is RO. One-shot masking, clear and cancellation are
   documented in [gpio.md](gpio.md).
-- UART0 divider, free-run, 8N1, FIFO counts, data and signal mux.
+- UART0 divider, free-run, 8N1, TX/RX FIFO counts and thresholds, interrupt masks,
+  enables, parity/FIFO error clearing, BUS_BUSY, data and GPIO22/23 signal mux.
 - ADC GPIP/AON clock/divider, PGA/chop/resolution/scan, FIFO tags/W1C and read-only
   gain trim at EF_DATA_0 shadow+0x78, parity/sign conversion. GPIP bit2 and EF_CTRL
   bit7 match SDK ungate code. No eFuse programming.

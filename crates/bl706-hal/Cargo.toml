@@ -15,6 +15,8 @@ embassy-time-driver = "0.2.2"
 embassy-time-queue-utils = { version = "0.3.2", features = ["generic-queue-8"] }
 embedded-hal = "1.0.0"
 embedded-hal-async = "1.0.0"
+embedded-io = "0.7.1"
+embedded-io-async = "0.7.0"
 embedded-storage = "0.3.2"
 embedded-storage-async = "0.4.2"
 portable-atomic = { version = "1.15.0", features = ["critical-section"] }

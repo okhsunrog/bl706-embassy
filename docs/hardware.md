@@ -33,8 +33,8 @@ driver can route controller **UART0 TX** to GPIO22. Examples now use RTT instead
 | Signal | GPIO | Example behavior |
 |---|---|---|
 | Tip_Control | 21 | GPIO output low; no heater drive |
-| UART TX | 22 | Optional driver: function7, signal6 → UART0_TXD; examples leave it alone |
-| UART RX | 23 | No RX driver |
+| UART TX | 22 | function7, signal6 → UART0_TXD; only `uart_async` initializes it |
+| UART RX | 23 | Async driver: function7, signal7 → UART0_RXD, pull-up |
 | I²C SCL | 10 | function6 |
 | I²C SDA | 11 | function6 |
 | OLED RESET_N | 3 | `display` drives an active-low reset; other examples leave it alone |
@@ -77,6 +77,9 @@ register calculation nor a successful transfer measures the actual SCL rate.
   It does not call system reset, but stopping feed/debug halt may cause watchdog reset.
 - `flash_probe`: JEDEC/status and a 16-byte read only. Compile-only trait wrappers
   are retained but never called. It creates no runtime writable region.
+- `uart_async`: concurrent UART0 TX/RX tasks at 115200 8N1, 320-byte writes,
+  idle RX cancellation/rearm, flush and a separate RTT heartbeat. Compile-only;
+  see [UART](uart.md) for wiring and future hardware checks.
 
 FUSB302 probes do not require one fixed ID because FUSB302/FUSB302B variants differ.
 Record the actual U1 marking and ID.

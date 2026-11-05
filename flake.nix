@@ -42,7 +42,7 @@
             '';
             installPhase = ''
               mkdir -p $out/bin
-              for example in heartbeat display fusb302 i2c_latency interrupt_executor gpio_irq analog sampling system flash_probe; do
+              for example in heartbeat display fusb302 i2c_latency interrupt_executor gpio_irq analog sampling system flash_probe uart_async; do
                 cp target/riscv32imc-unknown-none-elf/release/$example $out/bin/$example.elf
               done
             '';

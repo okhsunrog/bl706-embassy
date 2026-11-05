@@ -5,6 +5,7 @@
 
 pub use bl706_pac as pac;
 pub use embedded_hal_async;
+pub use embedded_io_async;
 pub use executor::{Executor, InterruptExecutor};
 /// Software fallback atomics, unified with static_cell by Cargo features.
 pub use portable_atomic;
