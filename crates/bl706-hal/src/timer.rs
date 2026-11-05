@@ -206,6 +206,14 @@ impl<const N: u8> Timer<N> {
         self.config = config;
         Ok(())
     }
+    /// Discard a previously latched match before arming a new future deadline.
+    /// Own the timer and mask interrupts around a set/acknowledge/listen sequence.
+    pub fn acknowledge(&mut self, events: Events) {
+        critical_section::with(|cs| {
+            clear(N, events.bits());
+            WAITERS.borrow(cs).borrow_mut()[N as usize].complete &= !events.bits();
+        });
+    }
     /// Set interrupt enables for the static ISR driver, or collect one-shot events via take_events.
     pub fn listen(&mut self, events: Events) {
         critical_section::with(|_| {
