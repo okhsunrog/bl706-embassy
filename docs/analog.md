@@ -2,8 +2,9 @@
 
 ADC has been exercised on Pinecil V2's BL706 through
 [`pinecil-rs`](https://github.com/okhsunrog/pinecil-rs). TIMER0 free-running compare
-callbacks have also been tested with PWM1 at zero duty. Other PWM/TIMER paths
-still need hardware qualification. Times and voltages below are nominal. The
+callbacks have also been tested with PWM1 at zero duty and with GPIO21's 50%
+carrier during bounded heating tests. Other PWM/TIMER paths still need hardware
+qualification. Times and voltages below are nominal. The
 standalone examples keep GPIO21 low with PWM unrouted; application heater
 regulation and its qualification belong to the board firmware.
 
@@ -150,13 +151,15 @@ Cancellation masks its compare without stopping the counter. Repeated matches ca
 coalesce; this is not a queue of every event.
 
 Alternatively, `InterruptDriver<N,H>` consumes Timer and `H: Handler<N>`. Place it
-in StaticCell; `register(&'static mut self, events)` permanently transfers ownership
-to the runtime. ISR acknowledges events and directly calls
+in StaticCell; `register(&'static self, events)` permanently registers the shared
+driver with the runtime. ISR acknowledges events and directly calls
 `H::on_interrupt(&mut self, &mut Timer<N>, Events)`. H may own ADC/PWM and control
 them without waking the executor. The application no longer owns a separate Timer,
 preventing two handlers sharing the channel. Callbacks must not log, block or wait
 for another IRQ. All pending compares arrive in one Events value; the order of
 missed phases cannot be reconstructed from these bits under overload.
+The application may use `with` for short synchronized access to the owned timer
+and handler; a critical-section mutex prevents aliasing the ISR's mutable access.
 
 ## Examples and limits
 
@@ -213,6 +216,17 @@ The application also observed a reboot after withholding watchdog feeding
 with output stopped, and reprogramming with its watchdog armed passed readback
 verification. See the [application hardware record](https://github.com/okhsunrog/pinecil-rs/blob/main/docs/heating-hardware.json)
 for the image revision, reset-flag limitation and remaining heater tests.
+
+Subsequent Pinecil tests routed PWM1 to GPIO21, with a nominal 5.33 kHz / 50%
+carrier and TIMER0 ending each requested on-window. The application completed
+532 live bursts with no cancellation and a maximum recorded cutoff lateness
+of 112 us. Bounded nominal 5 W / 80 C and 10 W / 150 C requests returned OFF
+automatically; injected sensor and stale-frame faults prevented further bursts.
+ADC, OLED, buttons, PD and BLE remained operational in the exercised scenarios.
+An independent 1000 SPS KM003C recording observed 4.759 A peak current magnitude
+under the negotiated 28 V / 5 A contract. PWM waveform timing has not been
+measured externally; these observations do not qualify other PWM channels,
+duties, period-count interrupts or all timer clock/preload modes.
 
 ## Sources
 
