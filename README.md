@@ -15,6 +15,9 @@ The workspace contains:
   and interrupt-driven async UART0 TX/RX, CLIC,
   Embassy executor/time driver, interrupt-driven async I²C/ADC, PWM, TIMER0/1,
   watchdog, reset and a RAM-only blocking/async NOR flash driver.
+- `bl706-ble` (BLE experiment branch): official peripheral-only controller/RF
+  archives, an RTOS-independent Embassy worker and native `bt-hci` transport.
+  [Port notes and hardware scope](docs/ble-port.md).
 - `examples/pinecil-v2`: peripheral probes, a sampling cycle with no heater output,
   clock/watchdog diagnostics, a read-only flash probe, FPU and isolated atomic probes.
   All examples log over RTT channel 0 (4 KiB, nonblocking). Only `uart_async`

@@ -1,7 +1,10 @@
 # BLE controller port investigation
 
-This is an experiment. No controller from this investigation has been linked
-into the firmware or tested on Pinecil. The existing firmware keeps heating off.
+The `experiment/ble-controller` branch now links the official peripheral-only
+controller without FreeRTOS. HCI commands and a Trouble GATT service have run
+on Pinecil V2, tested from the laptop's Bluetooth adapter. This remains a
+standalone experiment: OLED/PD coexistence, security and OTA are not validated.
+Heating stays off. See [the port and hardware notes](ble-port.md).
 
 ## Intended roles
 
