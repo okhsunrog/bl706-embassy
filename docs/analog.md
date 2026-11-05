@@ -1,8 +1,10 @@
 # ADC, PWM and TIMER
 
-Initial support, never run on BL706. Times and voltages below are nominal.
-Both examples hold GPIO21 as an ordinary low output with PWM unrouted. A complete
-heater regulator, PD policy and hardware qualification are outside this support.
+ADC has been exercised on Pinecil V2's BL706 through the read-only controller in
+[`pinecil-rs`](https://github.com/okhsunrog/pinecil-rs). PWM and TIMER support still
+await hardware validation. Times and voltages below are nominal. Both examples
+hold GPIO21 as an ordinary low output with PWM unrouted. A complete heater
+regulator and hardware qualification are outside this support.
 
 ## Ownership and Embassy
 
@@ -18,7 +20,8 @@ watchdog fields. The whole TIMER block is never reset. The watchdog has its own
 global MIE enabled. Static wakers/IRQ state retain no future or caller-buffer pointers.
 Completion before waker registration stays latched. Completion/cancellation masks
 the source, clears status and releases the waker. CLIC sources: ADC=41, PWM=50,
-TIMER0=52, TIMER1=53. IRQs do not nest; a long handler delays other peripherals.
+TIMER0=52, TIMER1=53. Peripheral handlers share one CLIC level, so a long handler
+delays its peers. They can preempt the lower-level software interrupt executor.
 
 ## ADC
 
@@ -48,13 +51,15 @@ derived from `Clocks`. Analog settings match the Pinecil BSP: V18=1.82 V, V11=1.
 PGA1/PGA2 x1, chop=2, main bandgap, VCM=1.2 V, delay=2 and offset correction off.
 Modern LHAL also enables MIC2_DIFF/NEG_GND and performs other calibration; that
 sequence was not copied blindly because IronOS explicitly leaves MIC2_DIFF off.
-Actual BL706 accuracy and behavior need hardware.
+The Pinecil measurements below exercise this configuration; absolute accuracy
+still needs reference measurements and calibration.
 
 Resolutions are 12-bit, 14-bit average16/64 and 16-bit average128/256: averaged
 12-bit SAR results, not a claim of physical 16-bit accuracy. FIFO words contain
 sample[15:0], negative tag[20:16] and positive tag[25:21]. `raw` retains left alignment;
 `counts` is right-aligned. The driver checks positive-tag order, negative tag=GND,
-extra data, overrun/underrun and analog saturation. Negative tag=23 requires HIL.
+extra data, overrun/underrun and analog saturation. Negative tag=23 was observed
+on Pinecil V2; other modes and channels remain outside that hardware test.
 
 `GainCalibration::from_efuse_shadow` only reads the boot-loaded shadow and enables
 the EF_CTRL AHB gate. It does not reload, invoke ROM APIs or write EF_CTRL/EF_DATA/
@@ -72,8 +77,9 @@ and copies successful results; caller output is unchanged on error/timeout/cance
 Errors are checked before and after draining. GPIP has mixed status/control: mask
 writes do not echo W1C flags. FIFO_CLR/error clears are explicit cleanup writes.
 The RM scan description mentions CONT_CONV_EN=1, whereas SDK/IronOS finite scans
-use SCAN_EN=1 and CONT_CONV_EN=0. This driver follows that SDK path; actual scan
-length and ordering remain unverified.
+use SCAN_EN=1 and CONT_CONV_EN=0. This driver follows that SDK path. Four-entry
+scans of repeated CH8, CH10 and CH9 completed on Pinecil; mixed-channel ordering
+and other scan lengths still need hardware tests.
 
 Manual ISR-driven operation uses `prepare_scan`, `start_prepared`, `stop`, `try_read`.
 Preparation stops ADC and clears FIFO. `start_prepared` never waits; it returns
@@ -154,6 +160,32 @@ and preservation of adjacent fields. They do not verify MMIO, actual tags/W1C,
 callbacks/waker glue, IRQ latency, analog settling, output waveforms or fail-off timing.
 `sampling` is not a regulator: command-freshness cutoff, PD/power limits, thermocouple
 conversion and qualified heating protection are absent. See [hardware.md](hardware.md).
+
+## ADC hardware evidence, 2026-11-05
+
+Pinecil V2 ran the XIP/FPU `pinecil-rs` image with GPIO21 held low and no PWM
+output routed. Its read-only task sampled VIN/handle/tip at 4 Hz using independent
+four-entry scans, 14-bit average16 and a 25 ms timeout per scan. The eFuse shadow
+provided a valid gain coefficient with denominator 1981.
+
+The first run timed out because the runtime used peripheral number 25 directly
+as the interrupt number. The RISC-V SDK adds `IRQ_NUM_BASE=16`: ADC is CLIC41,
+and the same audit identified PWM as CLIC50. The
+[routing correction](https://github.com/okhsunrog/bl706-embassy/commit/a2cc082defd0e35cdcecb342dd2df4c4e507834b)
+updates generated PAC metadata, dispatch, vectors and ELF audits together.
+
+After this correction, successive async scans completed without an ADC error.
+A 20-second steady-state window reported VIN 20.009..20.052 V and nominal
+handle temperature 29.97..30.12 C. An independent simultaneous KM003C capture
+contained 19,986 samples with no missing samples and VBUS 20.084..20.095 V.
+Mean VIN differed by about 0.3%; this is a comparison at one operating point,
+not a calibration. OLED FIFO errors recovered earlier in the session; no such
+error appeared in this steady-state window.
+
+This test validates completion of the exercised ADC scans and the application
+measurement path. It does not validate all ADC modes, mixed-channel ordering,
+fault/cancellation timing on hardware, absolute thermocouple accuracy, PWM,
+TIMER callbacks or heater fail-off behavior.
 
 ## Sources
 
