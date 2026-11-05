@@ -216,7 +216,7 @@ mod tests {
     }
     #[test]
     fn shared_timer_fields_preserve_sibling_and_watchdog() {
-        for (shift, mask) in [(2, 3), (5, 3), (0, 255), (8, 255), (1, 1), (2, 1)] {
+        for (shift, mask) in [(2, 3), (5, 3), (8, 255), (16, 255), (1, 1), (2, 1)] {
             let old = 0xa5a5_a5a5;
             let new = replace_field(old, mask, shift, 1);
             assert_eq!(new & !(mask << shift), old & !(mask << shift));

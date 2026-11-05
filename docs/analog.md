@@ -115,6 +115,16 @@ does not stop PWM. Forgotten futures retain no caller references; IRQ stays one-
 
 ## TIMER
 
+The TCDR divider fields for logical TIMER0/1 are the hardware TIMER2/3
+fields at bits 8..15 and 16..23. Bits 0..7 are reserved; bits 24..31 belong
+to the watchdog. The driver uses the named PAC setters to preserve them.
+
+`InterruptDriver::with` provides bounded, interrupt-masked access to the same
+timer and handler used by the ISR. This allows an application to arm a single
+heater pulse, while the ISR owns its cutoff. Callbacks and `with` closures
+must not wait, log or reenter the same driver. Static registration shares the
+driver through its critical-section mutex without aliased mutable references.
+
 Each channel has a 32-bit counter, actual divider 1..256 and three raw compares,
 with free-running or preload mode triggered by one compare. Sources are System
 (FCLK from the selected profile), 32K and 1K. Init explicitly powers RC32K and selects

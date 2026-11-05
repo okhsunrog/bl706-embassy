@@ -142,7 +142,12 @@ impl<const N: u8> Timer<N> {
         interrupt::disable(irq(N));
         critical_section::with(|_| {
             rw(0).modify(|r| *r = replace_field(*r, 3, 2 + 3 * N, config.clock as u32));
-            rw(0xbc).modify(|r| *r = replace_field(*r, 255, 8 * N, u32::from(config.divider - 1)));
+            // Hardware calls the two channels TIMER2/3. TCDR's low byte is
+            // reserved, not TIMER0; the watchdog owns the top byte.
+            pac::TIMER.TCDR().modify(|r| match N {
+                0 => r.set_tcdr2((config.divider - 1) as u8),
+                _ => r.set_tcdr3((config.divider - 1) as u8),
+            });
             let (free, preload, trigger) = match config.mode {
                 Mode::FreeRunning => (true, 0, 0),
                 Mode::Preload { value, trigger } => (false, value, trigger as u32 + 1),
@@ -276,46 +281,63 @@ pub trait Handler<const N: u8>: Send + 'static {
     fn on_interrupt(&mut self, timer: &mut Timer<N>, events: Events);
 }
 pub struct InterruptDriver<const N: u8, H: Handler<N>> {
+    inner: critical_section::Mutex<RefCell<DriverInner<N, H>>>,
+}
+struct DriverInner<const N: u8, H: Handler<N>> {
     timer: Timer<N>,
     handler: H,
 }
-trait Registered: Send {
-    fn dispatch(&mut self);
+trait Registered: Sync {
+    fn dispatch(&self);
 }
-static HANDLERS: critical_section::Mutex<RefCell<[Option<&'static mut dyn Registered>; 2]>> =
+static HANDLERS: critical_section::Mutex<RefCell<[Option<&'static dyn Registered>; 2]>> =
     critical_section::Mutex::new(RefCell::new([None, None]));
 impl<const N: u8, H: Handler<N>> InterruptDriver<N, H> {
     pub fn new(mut timer: Timer<N>, handler: H) -> Self {
         timer.stop();
         cancel(N, 7);
-        Self { timer, handler }
+        Self {
+            inner: critical_section::Mutex::new(RefCell::new(DriverInner { timer, handler })),
+        }
     }
-    /// Permanently moves exclusive ownership into the runtime. Initialize with StaticCell.
-    pub fn register(&'static mut self, events: Events) {
+    /// Register static storage and start the timer. Initialize with StaticCell.
+    pub fn register(&'static self, events: Events) {
         critical_section::with(|cs| {
             let mut handlers = HANDLERS.borrow(cs).borrow_mut();
             assert!(handlers[N as usize].is_none());
             clear(N, 7);
-            self.timer.listen(events);
-            self.timer.start();
+            let mut inner = self.inner.borrow(cs).borrow_mut();
+            inner.timer.listen(events);
+            inner.timer.start();
             handlers[N as usize] = Some(self);
         });
     }
+    /// Access the ISR-owned peripherals without aliasing its handler. The
+    /// closure runs with interrupts masked: keep it bounded, never wait/log,
+    /// and do not reenter this driver from the closure or the handler.
+    pub fn with<R>(&self, f: impl FnOnce(&mut Timer<N>, &mut H) -> R) -> R {
+        critical_section::with(|cs| {
+            let mut inner = self.inner.borrow(cs).borrow_mut();
+            let DriverInner { timer, handler } = &mut *inner;
+            f(timer, handler)
+        })
+    }
 }
 impl<const N: u8, H: Handler<N>> Registered for InterruptDriver<N, H> {
-    fn dispatch(&mut self) {
-        let bits = status(N) & rw(0x44 + usize::from(N) * 4).read() as u8;
-        if bits != 0 {
-            clear(N, bits);
-            self.handler.on_interrupt(&mut self.timer, Events(bits));
-        }
+    fn dispatch(&self) {
+        self.with(|timer, handler| {
+            let bits = status(N) & rw(0x44 + usize::from(N) * 4).read() as u8;
+            if bits != 0 {
+                clear(N, bits);
+                handler.on_interrupt(timer, Events(bits));
+            }
+        });
     }
 }
 pub(crate) fn on_interrupt(n: u8) {
-    let handler = critical_section::with(|cs| HANDLERS.borrow(cs).borrow_mut()[n as usize].take());
+    let handler = critical_section::with(|cs| HANDLERS.borrow(cs).borrow()[n as usize]);
     if let Some(handler) = handler {
         handler.dispatch();
-        critical_section::with(|cs| HANDLERS.borrow(cs).borrow_mut()[n as usize] = Some(handler));
         return;
     }
     let waker = critical_section::with(|cs| {
