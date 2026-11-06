@@ -7,6 +7,8 @@ use crate::{
 };
 use core::{future::poll_fn, ops::Range, task::Poll};
 use embassy_time::{Duration, Timer};
+mod xip;
+pub use xip::{Metrics as XipMetrics, XipFlash};
 pub struct FlashToken {
     _private: (),
 }

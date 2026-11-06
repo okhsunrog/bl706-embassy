@@ -1,5 +1,31 @@
 # Low-level NOR flash
 
+## XIP region handle
+
+`flash::XipFlash::new_mx25l8006` adds a separate ROM-backed path for the
+MX25L8006 (`c2 20 14`) with the validated dual-output, no-wrap boot profile.
+Its offsets are relative to an explicitly reserved erase-aligned range.
+The image offset must be `0x1000`. The constructor checks the linked RAM
+trampoline address, ROM API pointers and the actual JEDEC ID.
+
+The trampoline and fail-closed reset are copied into executable RAM by the
+linker scripts. It masks MIE, calls the SDK ROM XIP helpers (table entries
+78/79/81), flushes the cache (121), fences instructions and restores the previous
+MIE state. Configuration and write buffers reside in RAM. ROM failures reset
+from RAM rather than returning to an uncertain XIP mapping. Writes and erases
+are verified; an already erased sector does not incur another physical erase.
+
+This is not a background erase engine: interrupts are masked for each physical
+page program or sector erase. Callers must coordinate heating/radio/PD and must
+reserve the region in their image/linker layout. Async operations yield only
+between pages/sectors; they must not be cancelled to interrupt a physical write.
+Physical sector erase is disabled by default (`Error::Busy`); callers explicitly
+enable it only in a suitable maintenance window. Blank-sector erase requests
+are no-ops. Metrics expose program/erase counts and their maximum blocking time.
+Hardware qualification of this new path is pending.
+
+The original RAM-only driver below retains its existing contract.
+
 The driver implements `embedded_storage::nor_flash::{ReadNorFlash,NorFlash}` and
 their `embedded-storage-async` counterparts. It supplies read/write/erase, without
 a settings format, wear leveling or boot image. Applications may use
@@ -41,7 +67,8 @@ other densities are rejected; this is not a universal JEDEC/SFDP parser.
 `into_region(expected_jedec, physical_range)` converts a Probe into `Flash`.
 The application must reserve a range containing no firmware or unrelated data.
 The full expected ID, capacity, start<end and 4 KiB alignment are checked.
-Only prefixes EF40 (Winbond W25Q) and C840 (GigaDevice GD25Q) allow writes: their
+Prefixes EF40 (Winbond W25Q), C840 (GigaDevice GD25Q), and exact ID C22014
+(Macronix MX25L8006) allow writes: their
 common command path was compared with SDK flash configurations. This does not
 qualify every chip in those families or identify the chip fitted to Pinecil V2.
 No actual device marking or JEDEC ID has been read.

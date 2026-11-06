@@ -8,7 +8,7 @@ MEMORY {
 /* Deliberately leave top 16K of OCRAM to reset/ROM EM allocation. RAM ELF,
    loaded by debugger; no flash header, boot2, cache setup or XIP assumption. */
 SECTIONS {
-    .init : ALIGN(4) { KEEP(*(.init)) KEEP(*(.text.clock_switch)) } > ITCM
+    .init : ALIGN(4) { KEEP(*(.init)) KEEP(*(.text.clock_switch)) KEEP(*(.text.flash_transaction)) } > ITCM
     .vectors : ALIGN(64) { KEEP(*(.vectors)) } > ITCM
     .text : ALIGN(4) { *(.text .text.*) } > OCRAM
     .rodata : ALIGN(4) { *(.rodata .rodata.* .srodata .srodata.*) } > OCRAM

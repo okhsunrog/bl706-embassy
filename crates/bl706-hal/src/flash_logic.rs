@@ -33,10 +33,11 @@ impl Chip {
     }
     pub(crate) fn supports_writes(self) -> bool {
         // Only these standard 3-byte SPI NOR families have been reviewed here.
-        matches!(
-            (self.jedec_id[0], self.jedec_id[1]),
-            (0xef, 0x40) | (0xc8, 0x40)
-        )
+        self.jedec_id == [0xc2, 0x20, 0x14]
+            || matches!(
+                (self.jedec_id[0], self.jedec_id[1]),
+                (0xef, 0x40) | (0xc8, 0x40)
+            )
     }
 }
 pub(crate) struct Window {
@@ -453,6 +454,16 @@ mod tests {
     #[test]
     fn supported_profiles_and_unknown_busy_are_rejected() {
         assert!(chip().supports_writes());
+        assert!(
+            Chip::identify([0xc2, 0x20, 0x14])
+                .unwrap()
+                .supports_writes()
+        );
+        assert!(
+            !Chip::identify([0xc2, 0x20, 0x15])
+                .unwrap()
+                .supports_writes()
+        );
         assert!(
             Chip::identify([0xc8, 0x40, 0x18])
                 .unwrap()

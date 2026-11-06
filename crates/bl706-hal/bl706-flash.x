@@ -15,7 +15,7 @@ SECTIONS {
     .flash_boot : ALIGN(4) { KEEP(*(.flash_boot)) . = ALIGN(4); } > XIP AT> FLASH
     .init : ALIGN(64) {
         __tcm_start = .;
-        KEEP(*(.init)) KEEP(*(.text.clock_switch))
+        KEEP(*(.init)) KEEP(*(.text.clock_switch)) KEEP(*(.text.flash_transaction))
     } > ITCM AT> FLASH
     .vectors : ALIGN(64) {
         KEEP(*(.vectors))

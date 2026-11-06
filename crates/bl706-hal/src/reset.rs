@@ -51,6 +51,8 @@ pub fn clear_reason() {
     });
 }
 /// System+CPU reset via the SDK sequence. Does not erase flash or request ROM ISP.
+#[unsafe(link_section = ".text.flash_transaction")]
+#[inline(never)]
 pub fn system_reset() -> ! {
     unsafe {
         core::arch::asm!("csrci mstatus,8");
