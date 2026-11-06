@@ -289,7 +289,11 @@ impl embedded_storage_async::nor_flash::ReadNorFlash for XipFlash {
         self.capacity()
     }
     async fn read(&mut self, offset: u32, data: &mut [u8]) -> Result<(), Error> {
-        self.read(offset, data)
+        self.read(offset, data)?;
+        // Higher-level GC can scan thousands of small records without any
+        // write/erase. A ready-only read starves thread-mode tasks/watchdogs.
+        super::yield_once().await;
+        Ok(())
     }
 }
 impl embedded_storage_async::nor_flash::NorFlash for XipFlash {

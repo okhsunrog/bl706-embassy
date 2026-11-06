@@ -57,6 +57,10 @@ pub(crate) unsafe extern "C" fn switch_rc32m() {
         "lw t1,0(t0)",
         "lw t1,0(t0)",
         "lw t1,0(t0)",
+        // SDK SystemCoreClockSet: ROM delay helpers read HBN_RSV2.
+        "li t0,0x4000f108",
+        "li t1,32000000",
+        "sw t1,0(t0)",
         "fence iorw,iorw",
         "ret"
     );
@@ -179,6 +183,9 @@ pub(crate) unsafe fn init(config: Config) -> Result<Clocks, Error> {
         switch_planned(config.root_encoding(), dividers);
         switch_flash(config.flash_clock.register_bits());
     }
+    // ROM BL702_Delay_US uses this SDK frequency shadow, not clock registers.
+    // Stale RC32M metadata makes busy polling timeouts too short at DLL speed.
+    pac::HBN.HBN_RSV2().write(|r| r.0 = clocks.cpu_hz());
     pac::GLB.clk_cfg2().modify(|r| r.set_uart_clk_en(false));
     pac::HBN.HBN_GLB().modify(|r| r.set_hbn_uart_clk_sel(false)); // FCLK, not XCLK.
     pac::GLB.clk_cfg2().modify(|r| {

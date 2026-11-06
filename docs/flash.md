@@ -17,12 +17,13 @@ are verified; an already erased sector does not incur another physical erase.
 
 This is not a background erase engine: interrupts are masked for each physical
 page program or sector erase. Callers must coordinate heating/radio/PD and must
-reserve the region in their image/linker layout. Async operations yield only
-between pages/sectors; they must not be cancelled to interrupt a physical write.
+reserve the region in their image/linker layout. Async mutations yield only
+between pages/sectors; reads also yield to bound repeated record scanning. they must not be cancelled to interrupt a physical write.
 Physical sector erase is disabled by default (`Error::Busy`); callers explicitly
 enable it only in a suitable maintenance window. Blank-sector erase requests
 are no-ops. Metrics expose program/erase counts and their maximum blocking time.
-Hardware qualification of this new path is pending.
+The SDK core-clock shadow (`HBN_RSV2`) is kept current for ROM delay helpers.
+Hardware qualification is described in the application repository.
 
 The original RAM-only driver below retains its existing contract.
 
