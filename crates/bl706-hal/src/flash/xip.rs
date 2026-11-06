@@ -63,7 +63,7 @@ impl XipFlash {
         if !(0x2201_0000..0x2202_c000).contains(&ram_entry)
             || region.start < IMAGE_OFFSET
             || region.end > FLASH_CAPACITY
-            || unsafe { (0x4000_b080 as *const u32).read_volatile() } != IMAGE_OFFSET
+            || crate::pac::SF_CTRL.sf_id0_offset().read().0 != IMAGE_OFFSET
         {
             return Err(Error::OutOfBounds);
         }
