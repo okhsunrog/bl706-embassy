@@ -37,8 +37,9 @@ their `embedded-storage-async` counterparts. It supplies read/write/erase, witho
 a settings format, wear leveling or boot image. Applications may use
 `sequential-storage` above it; that crate is not a HAL dependency.
 
-**No physical flash operations have been performed.** Host tests and compilation
-do not establish controller operation, chip compatibility or data integrity.
+**The RAM-only backend below has not been hardware-tested.** Its host tests and
+compilation do not establish controller operation, chip compatibility or data
+integrity. The ROM-backed XIP implementation has separate qualification above.
 
 ## Initial implementation contract
 
@@ -76,8 +77,8 @@ The full expected ID, capacity, start<end and 4 KiB alignment are checked.
 Prefixes EF40 (Winbond W25Q), C840 (GigaDevice GD25Q), and exact ID C22014
 (Macronix MX25L8006) allow writes: their
 common command path was compared with SDK flash configurations. This does not
-qualify every chip in those families or identify the chip fitted to Pinecil V2.
-No actual device marking or JEDEC ID has been read.
+qualify every chip in those families. Pinecil's C22014 ID was read through the
+separate ROM-backed XIP path; that does not qualify the RAM-only SPI transport.
 
 ```rust,ignore
 // First establish the RAM/SPI/board contract and verify the actual chip.
